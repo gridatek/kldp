@@ -105,7 +105,9 @@ kubectl logs -n airflow <pod-name> -f
 - **Executor**: KubernetesExecutor (tasks run in isolated pods)
 - **Image**: apache/airflow:3.1.0-python3.12
 - **Metadata DB**: PostgreSQL (built-in, runs in same namespace)
-- **Storage**: Persistent volumes for DAGs (5Gi) and logs (10Gi)
+- **Storage**: Persistent volumes for DAGs (5Gi, ReadWriteOnce) and logs (10Gi)
+  - Note: ReadWriteOnce is sufficient for Minikube's standard storage class
+  - Only scheduler needs DAG volume access with KubernetesExecutor
 - **Resource Limits**: Configured for local development in core/airflow/values.yaml
 
 ### Kubernetes Namespaces

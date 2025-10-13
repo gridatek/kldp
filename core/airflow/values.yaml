@@ -67,7 +67,7 @@ dags:
     enabled: true
     size: 5Gi
     storageClassName: standard
-    accessMode: ReadWriteMany
+    accessMode: ReadWriteOnce
 
   # Git sync disabled - use local volume
   gitSync:
