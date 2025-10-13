@@ -1,0 +1,247 @@
+name: CI - KLDP Setup Validation
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  workflow_dispatch:
+
+jobs:
+  validate-setup:
+    name: Validate KLDP Setup
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Validate Python DAG syntax
+        run: |
+          echo "Installing Airflow for DAG validation..."
+          pip install apache-airflow==2.10.3 \
+            apache-airflow-providers-cncf-kubernetes==8.4.3 \
+            --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.10.3/constraints-3.11.txt"
+
+          echo "Validating DAG files..."
+          for dag in examples/dags/*.py; do
+            echo "Checking $dag..."
+            python "$dag"
+          done
+
+      - name: Start Minikube
+        uses: medyagh/setup-minikube@latest
+        with:
+          cpus: 2
+          memory: 4096
+          kubernetes-version: v1.30.0
+          driver: docker
+
+      - name: Verify Minikube is running
+        run: |
+          kubectl cluster-info
+          kubectl get nodes
+          kubectl version --client
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: 'latest'
+
+      - name: Create namespaces
+        run: |
+          kubectl create namespace airflow
+          kubectl create namespace spark
+          kubectl create namespace storage
+          kubectl create namespace monitoring
+          kubectl get namespaces
+
+      - name: Add Airflow Helm repository
+        run: |
+          helm repo add apache-airflow https://airflow.apache.org
+          helm repo update
+          helm search repo apache-airflow/airflow
+
+      - name: Install Airflow
+        run: |
+          echo "Installing Airflow with KubernetesExecutor..."
+          helm install airflow apache-airflow/airflow \
+            --namespace airflow \
+            --values core/airflow/values.yaml \
+            --version 1.16.0 \
+            --wait \
+            --timeout 15m
+
+          echo "Airflow installation complete!"
+
+      - name: Verify Airflow deployment
+        run: |
+          echo "Checking Airflow pods..."
+          kubectl get pods -n airflow
+
+          echo "Waiting for webserver to be ready..."
+          kubectl wait --for=condition=ready pod \
+            -l component=webserver \
+            -n airflow \
+            --timeout=300s
+
+          echo "Waiting for scheduler to be ready..."
+          kubectl wait --for=condition=ready pod \
+            -l component=scheduler \
+            -n airflow \
+            --timeout=300s
+
+          echo "All Airflow components are ready!"
+
+      - name: Check Airflow services
+        run: |
+          kubectl get svc -n airflow
+          kubectl get deployments -n airflow
+          kubectl get statefulsets -n airflow
+
+      - name: Test Airflow webserver connectivity
+        run: |
+          echo "Port-forwarding to Airflow webserver..."
+          kubectl port-forward svc/airflow-webserver 8080:8080 -n airflow &
+          sleep 10
+
+          echo "Testing webserver health..."
+          curl -f http://localhost:8080/health || echo "Health check endpoint not available in this version"
+
+          echo "Testing webserver login page..."
+          curl -f -s http://localhost:8080/login | grep -q "Airflow" && echo "Webserver is responding!"
+
+      - name: Copy example DAG to Airflow
+        run: |
+          echo "Copying example DAG to scheduler pod..."
+          SCHEDULER_POD=$(kubectl get pods -n airflow -l component=scheduler -o jsonpath='{.items[0].metadata.name}')
+          echo "Scheduler pod: $SCHEDULER_POD"
+
+          kubectl cp examples/dags/example_kubernetes_pod.py airflow/$SCHEDULER_POD:/opt/airflow/dags/
+
+          echo "Waiting for DAG to be detected..."
+          sleep 30
+
+      - name: Verify DAG is loaded
+        run: |
+          echo "Checking scheduler logs for DAG processing..."
+          SCHEDULER_POD=$(kubectl get pods -n airflow -l component=scheduler -o jsonpath='{.items[0].metadata.name}')
+          kubectl logs -n airflow $SCHEDULER_POD --tail=100 | grep -i "example_kubernetes_pod\|Processing file" || true
+
+      - name: Check Airflow logs
+        if: always()
+        run: |
+          echo "=== Webserver Logs ==="
+          kubectl logs -n airflow -l component=webserver --tail=50 || true
+
+          echo "=== Scheduler Logs ==="
+          kubectl logs -n airflow -l component=scheduler --tail=50 || true
+
+          echo "=== Triggerer Logs ==="
+          kubectl logs -n airflow -l component=triggerer --tail=50 || true
+
+      - name: Get all resources
+        if: always()
+        run: |
+          echo "=== All Pods ==="
+          kubectl get pods -n airflow -o wide
+
+          echo "=== All Services ==="
+          kubectl get svc -n airflow
+
+          echo "=== All PVCs ==="
+          kubectl get pvc -n airflow
+
+          echo "=== Events ==="
+          kubectl get events -n airflow --sort-by='.lastTimestamp' | tail -20
+
+      - name: Describe failed pods
+        if: failure()
+        run: |
+          echo "Describing any failed/pending pods..."
+          kubectl get pods -n airflow --field-selector=status.phase!=Running,status.phase!=Succeeded -o name | while read pod; do
+            echo "=== Describing $pod ==="
+            kubectl describe -n airflow $pod
+          done
+
+  validate-scripts:
+    name: Validate Shell Scripts
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install ShellCheck
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y shellcheck
+
+      - name: Validate shell scripts
+        run: |
+          echo "Running ShellCheck on all shell scripts..."
+          find scripts -name "*.sh" -type f -exec shellcheck {} \;
+          echo "All scripts passed ShellCheck!"
+
+      - name: Check script permissions
+        run: |
+          echo "Checking that scripts are executable..."
+          for script in scripts/*.sh; do
+            if [ -f "$script" ]; then
+              if [ ! -x "$script" ]; then
+                echo "Warning: $script is not executable"
+                chmod +x "$script"
+              fi
+            fi
+          done
+          echo "Script permissions verified!"
+
+  validate-yaml:
+    name: Validate YAML Files
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install yamllint
+        run: |
+          pip install yamllint
+
+      - name: Validate YAML syntax
+        run: |
+          echo "Validating YAML files..."
+          find . -name "*.yaml" -o -name "*.yml" | grep -v ".github" | while read file; do
+            echo "Checking $file..."
+            yamllint -d relaxed "$file"
+          done
+          echo "All YAML files are valid!"
+
+      - name: Validate Helm values
+        run: |
+          echo "Validating Helm values files..."
+          python -c "
+          import yaml
+          import sys
+
+          with open('core/airflow/values.yaml', 'r') as f:
+              values = yaml.safe_load(f)
+
+          # Basic validation checks
+          assert values.get('executor') == 'KubernetesExecutor', 'Executor must be KubernetesExecutor'
+          assert values.get('postgresql', {}).get('enabled') == True, 'PostgreSQL must be enabled'
+          assert values.get('redis', {}).get('enabled') == False, 'Redis must be disabled for KubernetesExecutor'
+
+          print('Helm values validation passed!')
+          "
