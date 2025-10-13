@@ -8,7 +8,7 @@ executor: "KubernetesExecutor"
 images:
   airflow:
     repository: apache/airflow
-    tag: "2.10.3-python3.11"
+    tag: "3.1.0-python3.12"
     pullPolicy: IfNotPresent
 
 # Default admin user and webserver configuration
@@ -136,10 +136,10 @@ env:
 
 # Extra pip packages (add common data engineering libraries)
 extraPipPackages:
-  - "apache-airflow-providers-apache-spark==4.10.0"
-  - "apache-airflow-providers-cncf-kubernetes==8.4.3"
-  - "pandas==2.2.3"
-  - "boto3==1.35.36"
+  - "apache-airflow-providers-apache-spark>=4.10.0"
+  - "apache-airflow-providers-cncf-kubernetes>=9.0.0"
+  - "pandas>=2.2.3"
+  - "boto3>=1.35.36"
 
 # Airflow configuration overrides
 config:
@@ -154,7 +154,7 @@ config:
   kubernetes_executor:
     namespace: airflow
     worker_container_repository: apache/airflow
-    worker_container_tag: "2.10.3-python3.11"
+    worker_container_tag: "3.1.0-python3.12"
     delete_worker_pods: 'True'
     delete_worker_pods_on_failure: 'False'
 

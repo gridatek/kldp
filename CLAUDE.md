@@ -7,7 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 KLDP (Kubernetes Local Data Platform) is a batteries-included local data engineering platform running on Minikube. It provides a production-like Kubernetes environment for developing, testing, and learning data pipelines without cloud costs.
 
 Current components:
-- Apache Airflow with KubernetesExecutor
+- Apache Airflow 3.1.0 with KubernetesExecutor (Python 3.12)
 - PostgreSQL (metadata database)
 - MinIO (S3-compatible object storage, planned)
 
@@ -103,7 +103,7 @@ kubectl logs -n airflow <pod-name> -f
 
 ### Airflow Configuration
 - **Executor**: KubernetesExecutor (tasks run in isolated pods)
-- **Image**: apache/airflow:2.10.3-python3.11
+- **Image**: apache/airflow:3.1.0-python3.12
 - **Metadata DB**: PostgreSQL (built-in, runs in same namespace)
 - **Storage**: Persistent volumes for DAGs (5Gi) and logs (10Gi)
 - **Resource Limits**: Configured for local development in core/airflow/values.yaml
@@ -134,13 +134,13 @@ The project uses KubernetesPodOperator for running tasks in isolated containers.
 ### core/airflow/values.yaml
 Helm values for Airflow deployment. Key settings:
 - Executor type (line 5: KubernetesExecutor)
-- Image version (lines 10-12)
+- Image version (lines 10-12: apache/airflow:3.1.0-python3.12)
 - Admin credentials (lines 15-23)
 - PostgreSQL config (lines 33-50)
 - Resource limits for components (lines 77-116)
 - Environment variables (lines 128-138)
-- Extra pip packages (lines 141-145)
-- Kubernetes executor settings (lines 157-162)
+- Extra pip packages (lines 137-142)
+- Kubernetes executor settings (lines 154-159)
 
 When modifying Airflow configuration, update this file and run:
 ```bash

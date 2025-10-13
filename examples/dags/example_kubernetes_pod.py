@@ -34,7 +34,7 @@ with DAG(
         task_id='python_computation',
         name='python-task',
         namespace='airflow',
-        image='python:3.11-slim',
+        image='python:3.12-slim',
         cmds=['python', '-c'],
         arguments=[
             'import sys; '
@@ -46,7 +46,7 @@ with DAG(
             'print("Task completed successfully!")'
         ],
         get_logs=True,
-        is_delete_operator_pod=True,
+        on_finish_action='delete_pod',
         in_cluster=True,
     )
 
@@ -55,7 +55,7 @@ with DAG(
         task_id='bash_operations',
         name='bash-task',
         namespace='airflow',
-        image='ubuntu:22.04',
+        image='ubuntu:24.04',
         cmds=['/bin/bash', '-c'],
         arguments=[
             'echo "Running in Kubernetes pod..."; '
@@ -66,7 +66,7 @@ with DAG(
             'echo "Bash task completed!"'
         ],
         get_logs=True,
-        is_delete_operator_pod=True,
+        on_finish_action='delete_pod',
         in_cluster=True,
     )
 
@@ -75,7 +75,7 @@ with DAG(
         task_id='data_processing',
         name='data-processing-task',
         namespace='airflow',
-        image='python:3.11-slim',
+        image='python:3.12-slim',
         cmds=['python', '-c'],
         arguments=[
             'import json; '
@@ -88,12 +88,12 @@ with DAG(
             'print("Data processing completed!")'
         ],
         get_logs=True,
-        is_delete_operator_pod=True,
+        on_finish_action='delete_pod',
         in_cluster=True,
-        resources=k8s.V1ResourceRequirements(
-            requests={'memory': '256Mi', 'cpu': '250m'},
-            limits={'memory': '512Mi', 'cpu': '500m'},
-        ),
+        container_resources={
+            'requests': {'memory': '256Mi', 'cpu': '250m'},
+            'limits': {'memory': '512Mi', 'cpu': '500m'},
+        },
     )
 
     # Task 4: Multi-container example with volume
@@ -111,7 +111,7 @@ with DAG(
         task_id='multi_container',
         name='multi-container-task',
         namespace='airflow',
-        image='python:3.11-slim',
+        image='python:3.12-slim',
         cmds=['python', '-c'],
         arguments=[
             'with open("/data/output.txt", "w") as f: '
@@ -123,7 +123,7 @@ with DAG(
         volumes=[volume],
         volume_mounts=[volume_mount],
         get_logs=True,
-        is_delete_operator_pod=True,
+        on_finish_action='delete_pod',
         in_cluster=True,
     )
 
