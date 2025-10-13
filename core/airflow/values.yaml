@@ -11,8 +11,16 @@ images:
     tag: "2.10.3-python3.11"
     pullPolicy: IfNotPresent
 
-# Default admin user
+# Default admin user and webserver configuration
 webserver:
+  replicas: 1
+  resources:
+    requests:
+      memory: "512Mi"
+      cpu: "500m"
+    limits:
+      memory: "1Gi"
+      cpu: "1000m"
   defaultUser:
     enabled: true
     role: Admin
@@ -21,7 +29,6 @@ webserver:
     firstName: Admin
     lastName: User
     password: admin
-
   # Service configuration for easy access
   service:
     type: NodePort
@@ -75,16 +82,6 @@ logs:
 
 # Resource configuration for Airflow components
 scheduler:
-  replicas: 1
-  resources:
-    requests:
-      memory: "512Mi"
-      cpu: "500m"
-    limits:
-      memory: "1Gi"
-      cpu: "1000m"
-
-webserver:
   replicas: 1
   resources:
     requests:
