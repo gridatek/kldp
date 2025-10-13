@@ -1,0 +1,84 @@
+# Auto detect text files and normalize line endings to LF
+* text=auto eol=lf
+
+# Explicitly declare text files
+*.md text
+*.txt text
+*.py text
+*.sh text
+*.yaml text
+*.yml text
+*.json text
+*.xml text
+*.html text
+*.css text
+*.js text
+*.sql text
+*.conf text
+*.config text
+*.toml text
+
+# Shell scripts should always use LF
+*.sh text eol=lf
+
+# Batch/PowerShell scripts for Windows
+*.bat text eol=crlf
+*.ps1 text eol=crlf
+
+# Documents
+*.doc diff=astextplain
+*.DOC diff=astextplain
+*.docx diff=astextplain
+*.DOCX diff=astextplain
+*.dot diff=astextplain
+*.DOT diff=astextplain
+*.pdf diff=astextplain
+*.PDF diff=astextplain
+*.rtf diff=astextplain
+*.RTF diff=astextplain
+
+# Graphics
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.svg text
+
+# Archives
+*.zip binary
+*.tar binary
+*.gz binary
+*.tgz binary
+*.7z binary
+*.rar binary
+
+# Data files
+*.parquet binary
+*.avro binary
+*.orc binary
+
+# Jupyter notebooks - treat as text but with special diff
+*.ipynb text linguist-documentation
+
+# Helm charts
+Chart.yaml linguist-language=YAML
+values.yaml linguist-language=YAML
+
+# Kubernetes manifests
+*.yaml linguist-language=YAML
+*.yml linguist-language=YAML
+
+# Documentation
+*.md linguist-documentation
+docs/** linguist-documentation
+
+# Example files
+examples/** linguist-vendored=false
+
+# Export ignore - files not included in git archive
+.gitignore export-ignore
+.gitattributes export-ignore
+.github/ export-ignore
+.vscode/ export-ignore
+.idea/ export-ignore
