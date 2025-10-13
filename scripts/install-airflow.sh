@@ -6,7 +6,7 @@ set -e
 
 NAMESPACE="airflow"
 RELEASE_NAME="airflow"
-CHART_VERSION=${KLDP_AIRFLOW_VERSION:-"1.16.0"}
+CHART_VERSION=${KLDP_AIRFLOW_VERSION:-"1.18.0"}
 
 echo "🚀 Installing Apache Airflow..."
 echo "  Namespace: $NAMESPACE"

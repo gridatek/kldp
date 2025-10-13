@@ -24,7 +24,7 @@ with DAG(
     'kldp_kubernetes_example',
     default_args=default_args,
     description='Example DAG using KubernetesPodOperator',
-    schedule_interval=timedelta(days=1),
+    schedule=timedelta(days=1),
     catchup=False,
     tags=['kldp', 'example', 'kubernetes'],
 ) as dag:

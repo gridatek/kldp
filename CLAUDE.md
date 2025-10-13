@@ -158,7 +158,7 @@ Creates minikube cluster with sensible defaults. Environment variables:
 
 ### scripts/install-airflow.sh
 Installs Airflow using Helm chart. Environment variable:
-- KLDP_AIRFLOW_VERSION (default: 1.16.0)
+- KLDP_AIRFLOW_VERSION (default: 1.18.0)
 
 ## Troubleshooting
 

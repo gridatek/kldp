@@ -74,7 +74,7 @@ jobs:
           helm install airflow apache-airflow/airflow \
             --namespace airflow \
             --values core/airflow/values.yaml \
-            --version 1.16.0 \
+            --version 1.18.0 \
             --wait \
             --timeout 15m
 
