@@ -1,0 +1,130 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+.venv/
+
+# Airflow
+airflow.db
+airflow.cfg
+logs/
+airflow-webserver.pid
+webserver_config.py
+*.db
+*.sqlite
+
+# IDEs and Editors
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+*.sublime-project
+*.sublime-workspace
+
+# Kubernetes
+*.kubeconfig
+kubeconfig
+*.key
+*.crt
+*.pem
+
+# Helm
+charts/*.tgz
+.helmignore
+
+# Minikube
+.minikube/
+
+# OS files
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Logs
+*.log
+logs/
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Secrets and credentials
+secrets/
+credentials/
+*.secret
+*-secret.yaml
+*-secrets.yaml
+
+# Terraform (if used in future)
+.terraform/
+*.tfstate
+*.tfstate.*
+.terraform.lock.hcl
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.bak
+*.backup
+
+# Coverage reports
+htmlcov/
+.tox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+.pytest_cache/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+*.ipynb
+
+# Local data directories
+data/
+*.csv
+*.parquet
+*.json
+*.xml
+
+# Docker
+docker-compose.override.yml
+
+# Local configuration overrides
+local-values.yaml
+*-local.yaml
+override.yaml

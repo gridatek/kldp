@@ -1,0 +1,170 @@
+# KLDP Airflow Configuration
+# Optimized for local development on Minikube
+
+# Airflow executor - KubernetesExecutor for production-like behavior
+executor: "KubernetesExecutor"
+
+# Airflow image
+images:
+  airflow:
+    repository: apache/airflow
+    tag: "2.10.3-python3.11"
+    pullPolicy: IfNotPresent
+
+# Default admin user
+webserver:
+  defaultUser:
+    enabled: true
+    role: Admin
+    username: admin
+    email: admin@kldp.local
+    firstName: Admin
+    lastName: User
+    password: admin
+
+  # Service configuration for easy access
+  service:
+    type: NodePort
+    ports:
+      - name: airflow-ui
+        port: 8080
+
+# PostgreSQL configuration (built-in for simplicity)
+postgresql:
+  enabled: true
+  auth:
+    enablePostgresUser: true
+    postgresPassword: postgres
+    username: airflow
+    password: airflow
+    database: airflow
+
+  # Resource limits for local development
+  primary:
+    resources:
+      requests:
+        memory: "256Mi"
+        cpu: "250m"
+      limits:
+        memory: "512Mi"
+        cpu: "500m"
+
+# Disable external Redis (not needed with KubernetesExecutor)
+redis:
+  enabled: false
+
+# DAGs configuration
+dags:
+  # Mount local DAGs directory
+  persistence:
+    enabled: true
+    size: 5Gi
+    storageClassName: standard
+    accessMode: ReadWriteMany
+
+  # Git sync disabled - use local volume
+  gitSync:
+    enabled: false
+
+# Logs persistence
+logs:
+  persistence:
+    enabled: true
+    size: 10Gi
+    storageClassName: standard
+
+# Resource configuration for Airflow components
+scheduler:
+  replicas: 1
+  resources:
+    requests:
+      memory: "512Mi"
+      cpu: "500m"
+    limits:
+      memory: "1Gi"
+      cpu: "1000m"
+
+webserver:
+  replicas: 1
+  resources:
+    requests:
+      memory: "512Mi"
+      cpu: "500m"
+    limits:
+      memory: "1Gi"
+      cpu: "1000m"
+
+triggerer:
+  enabled: true
+  replicas: 1
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "250m"
+    limits:
+      memory: "512Mi"
+      cpu: "500m"
+
+# Worker pod configuration for KubernetesExecutor
+workers:
+  resources:
+    requests:
+      memory: "512Mi"
+      cpu: "500m"
+    limits:
+      memory: "1Gi"
+      cpu: "1000m"
+
+# Configuration for database migrations
+createUserJob:
+  useHelmHooks: true
+  applyCustomEnv: true
+
+migrateDatabaseJob:
+  useHelmHooks: true
+  applyCustomEnv: true
+
+# Environment variables
+env:
+  - name: AIRFLOW__CORE__LOAD_EXAMPLES
+    value: "True"
+  - name: AIRFLOW__WEBSERVER__EXPOSE_CONFIG
+    value: "True"
+  - name: AIRFLOW__CORE__PARALLELISM
+    value: "32"
+  - name: AIRFLOW__CORE__MAX_ACTIVE_TASKS_PER_DAG
+    value: "16"
+  - name: AIRFLOW__SCHEDULER__MAX_TIS_PER_QUERY
+    value: "16"
+
+# Extra pip packages (add common data engineering libraries)
+extraPipPackages:
+  - "apache-airflow-providers-apache-spark==4.10.0"
+  - "apache-airflow-providers-cncf-kubernetes==8.4.3"
+  - "pandas==2.2.3"
+  - "boto3==1.35.36"
+
+# Airflow configuration overrides
+config:
+  celery:
+    worker_concurrency: 4
+  core:
+    dags_are_paused_at_creation: 'False'
+    load_default_connections: 'True'
+  webserver:
+    expose_config: 'True'
+    rbac: 'True'
+  kubernetes_executor:
+    namespace: airflow
+    worker_container_repository: apache/airflow
+    worker_container_tag: "2.10.3-python3.11"
+    delete_worker_pods: 'True'
+    delete_worker_pods_on_failure: 'False'
+
+# Security context
+securityContext:
+  runAsUser: 50000
+  fsGroup: 0
+
+# Standard naming for better organization
+useStandardNaming: true
