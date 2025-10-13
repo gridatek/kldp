@@ -125,7 +125,7 @@ migrateDatabaseJob:
 env:
   - name: AIRFLOW__CORE__LOAD_EXAMPLES
     value: "True"
-  - name: AIRFLOW__WEBSERVER__EXPOSE_CONFIG
+  - name: AIRFLOW__API__EXPOSE_CONFIG
     value: "True"
   - name: AIRFLOW__CORE__PARALLELISM
     value: "32"
@@ -148,9 +148,8 @@ config:
   core:
     dags_are_paused_at_creation: 'False'
     load_default_connections: 'True'
-  webserver:
+  api:
     expose_config: 'True'
-    rbac: 'True'
   kubernetes_executor:
     namespace: airflow
     worker_container_repository: apache/airflow

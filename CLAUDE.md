@@ -135,12 +135,12 @@ The project uses KubernetesPodOperator for running tasks in isolated containers.
 Helm values for Airflow deployment. Key settings:
 - Executor type (line 5: KubernetesExecutor)
 - Image version (lines 10-12: apache/airflow:3.1.0-python3.12)
-- Admin credentials (lines 15-23)
-- PostgreSQL config (lines 33-50)
-- Resource limits for components (lines 77-116)
-- Environment variables (lines 128-138)
-- Extra pip packages (lines 137-142)
-- Kubernetes executor settings (lines 154-159)
+- Admin credentials (lines 24-31)
+- PostgreSQL config (lines 40-57)
+- Resource limits for components (lines 84-113)
+- Environment variables (lines 125-135, note: uses api section for Airflow 3.x)
+- Extra pip packages (lines 138-142)
+- Kubernetes executor settings (lines 153-158)
 
 When modifying Airflow configuration, update this file and run:
 ```bash
