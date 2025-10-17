@@ -42,7 +42,6 @@ jobs:
           memory: 4096
           kubernetes-version: v1.30.0
           driver: docker
-          wait-timeout: 5m
 
       - name: Verify Minikube is running
         run: |

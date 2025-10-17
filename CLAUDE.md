@@ -188,6 +188,15 @@ kubectl exec -it -n airflow deployment/airflow-scheduler -- /bin/bash
 # View all resources and events
 kubectl get all -n airflow
 kubectl get events -n airflow --sort-by='.lastTimestamp'
+
+# Test DAG syntax locally (before deployment)
+python examples/dags/my_dag.py
+
+# Validate shell scripts with ShellCheck
+shellcheck scripts/*.sh
+
+# Validate YAML syntax
+yamllint -d relaxed core/airflow/values.yaml
 ```
 
 ## Troubleshooting
