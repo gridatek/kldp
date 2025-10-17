@@ -265,15 +265,17 @@ The CI workflow:
 5. Verifies all components are healthy
 6. Tests DAG deployment and detection
 
-**CI-Optimized Configuration (values-ci.yaml):**
-The CI environment uses a separate Helm values file with:
+**CI-Optimized Configuration (values-ci-emptydir.yaml):**
+The CI environment uses a separate Helm values file optimized for GitHub Actions:
 - Reduced resource requests/limits (256Mi/512Mi RAM per component)
 - Triggerer disabled to save resources (not needed for validation)
 - API Server disabled (replicas: 0) to save resources (new in Airflow 3.x, not needed for validation)
 - Example DAGs disabled for faster startup
-- Smaller persistent volumes (1Gi DAGs, 2Gi logs)
+- **emptyDir volumes instead of PVCs** for DAGs, logs, and PostgreSQL (eliminates PVC provisioning delays)
 - PostgreSQL with minimal resources (128Mi/256Mi RAM)
 - Reduced parallelism settings
+
+**Important**: The CI configuration uses `emptyDir` volumes instead of PersistentVolumeClaims to avoid storage provisioning delays in CI environments. This means data is ephemeral and lost when pods restart, which is acceptable for CI validation purposes.
 
 **Running CI checks locally:**
 ```bash
@@ -285,17 +287,17 @@ shellcheck scripts/*.sh
 
 # Validate YAML files
 yamllint -d relaxed core/airflow/values.yaml
-yamllint -d relaxed core/airflow/values-ci.yaml
+yamllint -d relaxed core/airflow/values-ci-emptydir.yaml
 
 # Test CI-optimized installation (requires clean Minikube setup)
 minikube start --cpus=2 --memory=4096 --profile=kldp-ci
+kubectl create namespace airflow
 helm install airflow apache-airflow/airflow \
   --namespace airflow \
-  --create-namespace \
-  --values core/airflow/values-ci.yaml \
+  --values core/airflow/values-ci-emptydir.yaml \
   --version 1.18.0 \
   --wait \
-  --timeout 20m
+  --timeout 15m
 ```
 
 **Common CI Issues:**
@@ -305,15 +307,20 @@ helm install airflow apache-airflow/airflow \
    - Timeout increased to 20 minutes for reliability
 
 2. **PostgreSQL not becoming ready**: Database initialization can be slow with limited resources
-   - Solution: Reduced PostgreSQL resource requirements in values-ci.yaml
-   - Uses smaller persistent volume (1Gi vs 8Gi default)
+   - Solution: Reduced PostgreSQL resource requirements
+   - Uses emptyDir for PostgreSQL data (acceptable for CI validation)
 
-3. **Out of memory errors**: CI environment has strict memory limits
+3. **PersistentVolumeClaim provisioning timeouts**: Storage provisioning can take 15+ minutes in CI
+   - Solution: Use emptyDir volumes instead of PVCs in values-ci-emptydir.yaml
+   - Eliminates storage provisioning delays entirely
+   - Data is ephemeral but acceptable for CI validation
+
+4. **Out of memory errors**: CI environment has strict memory limits
    - Solution: All components configured with appropriate limits
    - Triggerer and API Server disabled to free up resources
 
-4. **API Server not becoming ready** (Airflow 3.x): New component that may fail in resource-constrained environments
-   - Solution: API Server disabled in values-ci.yaml by setting `replicas: 0`
+5. **API Server not becoming ready** (Airflow 3.x): New component that may fail in resource-constrained environments
+   - Solution: API Server disabled by setting `apiServer.replicas: 0`
    - Note: apiServer doesn't have an `enabled` field in the Helm chart, use `replicas: 0` instead
    - Not required for basic DAG validation and testing
 

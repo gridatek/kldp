@@ -63,6 +63,42 @@ jobs:
           kubectl create namespace monitoring
           kubectl get namespaces
 
+      - name: Verify storage provisioner
+        run: |
+          echo "Checking storage classes..."
+          kubectl get storageclass
+
+          echo "Checking if storage provisioner is ready..."
+          kubectl get pods -n kube-system | grep storage-provisioner || true
+
+          echo "Testing PVC creation..."
+          cat <<EOF | kubectl apply -f -
+          apiVersion: v1
+          kind: PersistentVolumeClaim
+          metadata:
+            name: test-pvc
+            namespace: airflow
+          spec:
+            accessModes:
+              - ReadWriteOnce
+            resources:
+              requests:
+                storage: 100Mi
+            storageClassName: standard
+          EOF
+
+          echo "Waiting for test PVC to be bound..."
+          kubectl wait --for=jsonpath='{.status.phase}'=Bound pvc/test-pvc -n airflow --timeout=2m || {
+            echo "Test PVC failed to bind, checking events..."
+            kubectl describe pvc test-pvc -n airflow
+            kubectl get events -n airflow
+            exit 1
+          }
+
+          echo "Test PVC bound successfully, cleaning up..."
+          kubectl delete pvc test-pvc -n airflow
+          echo "Storage provisioner is working correctly"
+
       - name: Add Airflow Helm repository
         run: |
           helm repo add apache-airflow https://airflow.apache.org
@@ -78,16 +114,19 @@ jobs:
 
       - name: Install Airflow
         run: |
-          echo "Installing Airflow with KubernetesExecutor (CI-optimized)..."
+          echo "Installing Airflow with KubernetesExecutor (CI-optimized with emptyDir)..."
+
+          # Use emptyDir-based config for faster startup (no PVC provisioning delays)
           helm install airflow apache-airflow/airflow \
             --namespace airflow \
-            --values core/airflow/values-ci.yaml \
+            --values core/airflow/values-ci-emptydir.yaml \
             --version 1.18.0 \
             --wait \
-            --timeout 20m \
+            --timeout 15m \
             --debug
 
           echo "Airflow installation complete!"
+        timeout-minutes: 20
 
       - name: Verify Airflow deployment
         run: |
