@@ -21,6 +21,8 @@ Planned components: Spark Operator, Prometheus/Grafana, Kafka, JupyterHub
 - kubectl
 - Helm
 
+**Windows Users**: These scripts are bash scripts. On Windows, use Git Bash, WSL2 (recommended), or create PowerShell equivalents.
+
 ### Initialize Cluster
 ```bash
 # Set resource limits via environment variables (optional)
@@ -37,6 +39,10 @@ This creates namespaces: airflow, spark, storage, monitoring
 
 ### Install Airflow
 ```bash
+# From repository root
+./scripts/install-airflow.sh
+
+# Or from scripts directory
 cd scripts
 ./install-airflow.sh
 ```
@@ -108,6 +114,7 @@ kubectl logs -n airflow <pod-name> -f
 - **Storage**: Persistent volumes for DAGs (5Gi, ReadWriteOnce) and logs (10Gi)
   - Note: ReadWriteOnce is sufficient for Minikube's standard storage class
   - Only scheduler needs DAG volume access with KubernetesExecutor
+  - Task pods receive DAG code through Airflow's serialization mechanism, not via shared volume
 - **Resource Limits**: Configured for local development in core/airflow/values.yaml
 
 ### Kubernetes Namespaces
@@ -151,6 +158,8 @@ helm upgrade airflow apache-airflow/airflow \
     --values core/airflow/values.yaml
 ```
 
+**Note**: Configuration changes in values.yaml require `helm upgrade`. For DAG changes only, no helm upgrade is needed - just restart the scheduler if DAGs aren't being picked up automatically.
+
 ### scripts/init-cluster.sh
 Creates minikube cluster with sensible defaults. Environment variables:
 - KLDP_CPUS (default: 4)
@@ -161,6 +170,25 @@ Creates minikube cluster with sensible defaults. Environment variables:
 ### scripts/install-airflow.sh
 Installs Airflow using Helm chart. Environment variable:
 - KLDP_AIRFLOW_VERSION (default: 1.18.0)
+
+## Quick Diagnostics
+
+```bash
+# Check overall cluster health
+kubectl get pods -n airflow
+kubectl get pvc -n airflow
+helm status airflow -n airflow
+
+# Check Airflow configuration
+kubectl exec -n airflow deployment/airflow-scheduler -- airflow config list
+
+# Access scheduler pod for manual DAG inspection
+kubectl exec -it -n airflow deployment/airflow-scheduler -- /bin/bash
+
+# View all resources and events
+kubectl get all -n airflow
+kubectl get events -n airflow --sort-by='.lastTimestamp'
+```
 
 ## Troubleshooting
 
@@ -221,6 +249,36 @@ kldp/
 4. Test in Airflow UI
 5. Commit changes when working
 
+## CI/CD
+
+The project includes a GitHub Actions workflow (.github/workflows/ci.yml) that validates:
+- DAG syntax (Python 3.12)
+- Full KLDP setup on Minikube
+- Shell script quality (ShellCheck)
+- YAML syntax and Helm values
+
+The CI workflow:
+1. Validates all DAG files can be parsed by Airflow 3.1.0
+2. Spins up Minikube with reduced resources (2 CPUs, 4GB RAM)
+3. Installs Airflow using the same Helm chart and values
+4. Verifies all components are healthy
+5. Tests DAG deployment and detection
+
+**Running CI checks locally:**
+```bash
+# Validate DAG syntax
+python examples/dags/example_kubernetes_pod.py
+
+# Run ShellCheck on scripts
+shellcheck scripts/*.sh
+
+# Validate YAML files
+yamllint -d relaxed core/airflow/values.yaml
+
+# Full integration test (requires clean Minikube setup)
+# Follow the standard installation process
+```
+
 ## System Requirements
 
 **Minimal (Airflow only):**
@@ -232,3 +290,8 @@ kldp/
 - 6 CPU cores
 - 12 GB RAM
 - 40 GB disk space
+
+**CI Environment (GitHub Actions):**
+- 2 CPU cores
+- 4 GB RAM
+- Uses ubuntu-latest runners
