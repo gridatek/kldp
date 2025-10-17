@@ -92,6 +92,10 @@ scheduler:
 triggerer:
   enabled: false
 
+# Disable API server to save resources (new in Airflow 3.x)
+apiServer:
+  enabled: false
+
 # Minimal worker pod configuration
 workers:
   resources:
