@@ -93,8 +93,9 @@ triggerer:
   enabled: false
 
 # Disable API server to save resources (new in Airflow 3.x)
+# Note: apiServer doesn't have an 'enabled' field, so we set replicas to 0
 apiServer:
-  enabled: false
+  replicas: 0
 
 # Minimal worker pod configuration
 workers:

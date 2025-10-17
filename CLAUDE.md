@@ -268,7 +268,8 @@ The CI workflow:
 **CI-Optimized Configuration (values-ci.yaml):**
 The CI environment uses a separate Helm values file with:
 - Reduced resource requests/limits (256Mi/512Mi RAM per component)
-- Triggerer disabled to save resources
+- Triggerer disabled to save resources (not needed for validation)
+- API Server disabled (replicas: 0) to save resources (new in Airflow 3.x, not needed for validation)
 - Example DAGs disabled for faster startup
 - Smaller persistent volumes (1Gi DAGs, 2Gi logs)
 - PostgreSQL with minimal resources (128Mi/256Mi RAM)
@@ -309,7 +310,12 @@ helm install airflow apache-airflow/airflow \
 
 3. **Out of memory errors**: CI environment has strict memory limits
    - Solution: All components configured with appropriate limits
-   - Triggerer disabled to free up resources
+   - Triggerer and API Server disabled to free up resources
+
+4. **API Server not becoming ready** (Airflow 3.x): New component that may fail in resource-constrained environments
+   - Solution: API Server disabled in values-ci.yaml by setting `replicas: 0`
+   - Note: apiServer doesn't have an `enabled` field in the Helm chart, use `replicas: 0` instead
+   - Not required for basic DAG validation and testing
 
 ## System Requirements
 
