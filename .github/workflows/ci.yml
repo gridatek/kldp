@@ -11,7 +11,7 @@ jobs:
   validate-setup:
     name: Validate KLDP Setup
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
 
     steps:
       - name: Checkout code
@@ -36,12 +36,15 @@ jobs:
           done
 
       - name: Start Minikube
-        uses: medyagh/setup-minikube@latest
+        uses: medyagh/setup-minikube@v0.0.16
         with:
+          minikube-version: 1.32.0
           cpus: 2
-          memory: 4096
+          memory: 4096mb
           kubernetes-version: v1.30.0
           driver: docker
+          container-runtime: docker
+          start-args: '--wait=all'
 
       - name: Debug Minikube status
         run: |
@@ -56,6 +59,14 @@ jobs:
           
           echo "=== Available disk ==="
           df -h
+
+      - name: Wait for cluster to be fully ready
+        run: |
+          echo "=== Waiting for cluster to be fully ready ==="
+          kubectl wait --for=condition=Ready nodes --all --timeout=300s || echo "Nodes not ready within timeout"
+          
+          echo "=== Waiting for system pods ==="
+          kubectl wait --for=condition=Ready pods --all -n kube-system --timeout=300s || echo "System pods not ready within timeout"
 
       - name: Verify Minikube is running
         run: |
@@ -155,11 +166,12 @@ jobs:
             --values core/airflow/values-ci-emptydir.yaml \
             --version 1.18.0 \
             --wait \
-            --timeout 15m \
-            --debug
+            --timeout 20m \
+            --debug \
+            --atomic
 
           echo "Airflow installation complete!"
-        timeout-minutes: 20
+        timeout-minutes: 25
 
       - name: Verify Airflow deployment
         run: |
