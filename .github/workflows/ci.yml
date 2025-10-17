@@ -42,6 +42,7 @@ jobs:
           memory: 4096
           kubernetes-version: v1.30.0
           driver: docker
+          wait-timeout: 5m
 
       - name: Verify Minikube is running
         run: |
@@ -68,34 +69,53 @@ jobs:
           helm repo update
           helm search repo apache-airflow/airflow
 
+      - name: Pre-pull Airflow images
+        run: |
+          echo "Pre-pulling images to avoid timeout during Helm install..."
+          minikube image pull apache/airflow:3.1.0-python3.12
+          minikube image pull postgres:13
+          echo "Images pre-pulled successfully"
+
       - name: Install Airflow
         run: |
-          echo "Installing Airflow with KubernetesExecutor..."
+          echo "Installing Airflow with KubernetesExecutor (CI-optimized)..."
           helm install airflow apache-airflow/airflow \
             --namespace airflow \
-            --values core/airflow/values.yaml \
+            --values core/airflow/values-ci.yaml \
             --version 1.18.0 \
             --wait \
-            --timeout 15m
+            --timeout 20m \
+            --debug
 
           echo "Airflow installation complete!"
 
       - name: Verify Airflow deployment
         run: |
           echo "Checking Airflow pods..."
-          kubectl get pods -n airflow
+          kubectl get pods -n airflow -o wide
+
+          echo "Checking pod statuses..."
+          kubectl get pods -n airflow -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.status.phase}{"\n"}{end}'
 
           echo "Waiting for webserver to be ready..."
           kubectl wait --for=condition=ready pod \
             -l component=webserver \
             -n airflow \
-            --timeout=300s
+            --timeout=300s || {
+              echo "Webserver failed to become ready, checking logs..."
+              kubectl logs -n airflow -l component=webserver --tail=100
+              exit 1
+            }
 
           echo "Waiting for scheduler to be ready..."
           kubectl wait --for=condition=ready pod \
             -l component=scheduler \
             -n airflow \
-            --timeout=300s
+            --timeout=300s || {
+              echo "Scheduler failed to become ready, checking logs..."
+              kubectl logs -n airflow -l component=scheduler --tail=100
+              exit 1
+            }
 
           echo "All Airflow components are ready!"
 
@@ -143,8 +163,8 @@ jobs:
           echo "=== Scheduler Logs ==="
           kubectl logs -n airflow -l component=scheduler --tail=50 || true
 
-          echo "=== Triggerer Logs ==="
-          kubectl logs -n airflow -l component=triggerer --tail=50 || true
+          echo "=== PostgreSQL Logs ==="
+          kubectl logs -n airflow -l app.kubernetes.io/name=postgresql --tail=50 || true
 
       - name: Get all resources
         if: always()

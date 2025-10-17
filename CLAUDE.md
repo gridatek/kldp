@@ -260,9 +260,19 @@ The project includes a GitHub Actions workflow (.github/workflows/ci.yml) that v
 The CI workflow:
 1. Validates all DAG files can be parsed by Airflow 3.1.0
 2. Spins up Minikube with reduced resources (2 CPUs, 4GB RAM)
-3. Installs Airflow using the same Helm chart and values
-4. Verifies all components are healthy
-5. Tests DAG deployment and detection
+3. Pre-pulls Docker images to avoid timeout issues
+4. Installs Airflow using CI-optimized configuration (core/airflow/values-ci.yaml)
+5. Verifies all components are healthy
+6. Tests DAG deployment and detection
+
+**CI-Optimized Configuration (values-ci.yaml):**
+The CI environment uses a separate Helm values file with:
+- Reduced resource requests/limits (256Mi/512Mi RAM per component)
+- Triggerer disabled to save resources
+- Example DAGs disabled for faster startup
+- Smaller persistent volumes (1Gi DAGs, 2Gi logs)
+- PostgreSQL with minimal resources (128Mi/256Mi RAM)
+- Reduced parallelism settings
 
 **Running CI checks locally:**
 ```bash
@@ -274,10 +284,32 @@ shellcheck scripts/*.sh
 
 # Validate YAML files
 yamllint -d relaxed core/airflow/values.yaml
+yamllint -d relaxed core/airflow/values-ci.yaml
 
-# Full integration test (requires clean Minikube setup)
-# Follow the standard installation process
+# Test CI-optimized installation (requires clean Minikube setup)
+minikube start --cpus=2 --memory=4096 --profile=kldp-ci
+helm install airflow apache-airflow/airflow \
+  --namespace airflow \
+  --create-namespace \
+  --values core/airflow/values-ci.yaml \
+  --version 1.18.0 \
+  --wait \
+  --timeout 20m
 ```
+
+**Common CI Issues:**
+
+1. **Timeout during Helm install**: Usually caused by slow image pulls or insufficient resources
+   - Solution: Images are pre-pulled in CI workflow
+   - Timeout increased to 20 minutes for reliability
+
+2. **PostgreSQL not becoming ready**: Database initialization can be slow with limited resources
+   - Solution: Reduced PostgreSQL resource requirements in values-ci.yaml
+   - Uses smaller persistent volume (1Gi vs 8Gi default)
+
+3. **Out of memory errors**: CI environment has strict memory limits
+   - Solution: All components configured with appropriate limits
+   - Triggerer disabled to free up resources
 
 ## System Requirements
 
