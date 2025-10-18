@@ -42,6 +42,7 @@ jobs:
           docker system prune -f || echo "Docker cleanup failed"
 
       - name: Start Minikube
+        id: minikube-start
         uses: medyagh/setup-minikube@v0.0.16
         with:
           minikube-version: 1.32.0
@@ -50,46 +51,29 @@ jobs:
           kubernetes-version: v1.30.0
           driver: docker
           container-runtime: docker
-          start-args: '--wait=all --delete-on-failure --force'
-        continue-on-error: false
-        timeout-minutes: 10
+          start-args: '--wait=all --delete-on-failure'
+        continue-on-error: true
+        timeout-minutes: 8
 
-      - name: Retry Minikube start if failed
-        if: failure()
+      - name: Retry Minikube start if needed
+        if: steps.minikube-start.outcome == 'failure'
         run: |
           echo "=== Minikube start failed, attempting manual retry ==="
           minikube delete || echo "Delete failed"
           sleep 10
           
-          # First retry with same version
+          # Retry with stable version and simpler config
           minikube start \
             --cpus=2 \
-            --memory=4096mb \
-            --kubernetes-version=v1.30.0 \
+            --memory=4096 \
+            --kubernetes-version=v1.28.3 \
             --driver=docker \
-            --container-runtime=docker \
             --wait=all \
-            --delete-on-failure \
-            --force || {
-              echo "First retry failed, trying with different Kubernetes version"
-              minikube delete || echo "Delete failed"
-              sleep 5
-              
-              # Second retry with stable version
-              minikube start \
-                --cpus=2 \
-                --memory=4096mb \
-                --kubernetes-version=v1.28.3 \
-                --driver=docker \
-                --container-runtime=docker \
-                --wait=all \
-                --delete-on-failure \
-                --force || {
-                  echo "All retries failed, showing debug info"
-                  minikube logs || echo "No logs available"
-                  docker ps -a || echo "No containers"
-                  exit 1
-                }
+            --delete-on-failure || {
+              echo "Retry failed, showing debug info"
+              minikube logs || echo "No logs available"
+              docker ps -a || echo "No containers"
+              exit 1
             }
 
       - name: Debug Minikube status
@@ -112,13 +96,30 @@ jobs:
           echo "=== Docker containers ==="
           docker ps -a || echo "Failed to list containers"
 
+      - name: Verify Minikube is working
+        run: |
+          echo "=== Final verification that Minikube is working ==="
+          minikube status || exit 1
+          kubectl cluster-info || exit 1
+          kubectl get nodes || exit 1
+
       - name: Wait for cluster to be fully ready
         run: |
           echo "=== Waiting for cluster to be fully ready ==="
-          kubectl wait --for=condition=Ready nodes --all --timeout=300s || echo "Nodes not ready within timeout"
+          kubectl wait --for=condition=Ready nodes --all --timeout=300s || {
+            echo "Nodes not ready, showing debug info"
+            kubectl get nodes -o wide
+            kubectl describe nodes
+            exit 1
+          }
           
           echo "=== Waiting for system pods ==="
-          kubectl wait --for=condition=Ready pods --all -n kube-system --timeout=300s || echo "System pods not ready within timeout"
+          kubectl wait --for=condition=Ready pods --all -n kube-system --timeout=300s || {
+            echo "System pods not ready, showing debug info"
+            kubectl get pods -n kube-system
+            kubectl describe pods -n kube-system
+            exit 1
+          }
 
       - name: Verify Minikube is running
         run: |
@@ -197,9 +198,11 @@ jobs:
       - name: Pre-pull Airflow images
         run: |
           echo "Pre-pulling images to avoid timeout during Helm install..."
-          minikube image pull apache/airflow:3.1.0-python3.12
-          minikube image pull postgres:13
-          echo "Images pre-pulled successfully"
+          minikube image pull apache/airflow:3.1.0-python3.12 || echo "Failed to pull Airflow image"
+          minikube image pull postgres:13 || echo "Failed to pull PostgreSQL image"
+          
+          echo "Checking loaded images..."
+          minikube image ls || echo "Failed to list images"
 
       - name: Install Airflow
         run: |
