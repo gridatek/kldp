@@ -16,11 +16,11 @@ webserver:
   replicas: 1
   resources:
     requests:
+      memory: "128Mi"
+      cpu: "100m"
+    limits:
       memory: "256Mi"
       cpu: "250m"
-    limits:
-      memory: "512Mi"
-      cpu: "500m"
   defaultUser:
     enabled: true
     role: Admin
@@ -76,11 +76,11 @@ scheduler:
   replicas: 1
   resources:
     requests:
+      memory: "128Mi"
+      cpu: "100m"
+    limits:
       memory: "256Mi"
       cpu: "250m"
-    limits:
-      memory: "512Mi"
-      cpu: "500m"
 
 # Disable triggerer to save resources
 triggerer:
@@ -95,11 +95,11 @@ apiServer:
 workers:
   resources:
     requests:
+      memory: "128Mi"
+      cpu: "100m"
+    limits:
       memory: "256Mi"
       cpu: "250m"
-    limits:
-      memory: "512Mi"
-      cpu: "500m"
 
 # Database migrations
 createUserJob:
