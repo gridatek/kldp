@@ -35,86 +35,23 @@ jobs:
             python "$dag"
           done
 
-      - name: Set up Minikube manually
-        run: |
-          echo "=== Setting up Minikube manually for better control ==="
-          
-          # Clean up any existing instances
-          minikube delete --all || echo "No existing instances"
-          docker system prune -f || echo "Docker cleanup failed"
-          
-          # Start with minimal, stable configuration
-          minikube start \
-            --cpus=2 \
-            --memory=4g \
-            --disk-size=20g \
-            --kubernetes-version=v1.28.3 \
-            --driver=docker \
-            --container-runtime=docker \
-            --bootstrapper=kubeadm \
-            --extra-config=kubelet.max-pods=110 \
-            --wait=all \
-            --delete-on-failure
-        timeout-minutes: 15
+      - name: Start Minikube
+        uses: medyagh/setup-minikube@latest
+        with:
+          driver: docker
+          container-runtime: containerd
+          kubernetes-version: v1.28.3
+          cpus: 2
+          memory: 4000m
+          wait: all
+          start-args: '--delete-on-failure'
 
-      - name: Debug Minikube status
-        run: |
-          echo "=== Minikube status ==="
-          minikube status || echo "Minikube status failed"
-          
-          echo "=== Minikube logs (last 50 lines) ==="
-          minikube logs --length=50 || echo "Failed to get minikube logs"
-          
-          echo "=== Docker info ==="
-          docker info || echo "Docker info failed"
-          
-          echo "=== Available memory ==="
-          free -h
-          
-          echo "=== Available disk ==="
-          df -h
-          
-          echo "=== Docker containers ==="
-          docker ps -a || echo "Failed to list containers"
-
-      - name: Verify Minikube is working
-        run: |
-          echo "=== Final verification that Minikube is working ==="
-          minikube status || exit 1
-          kubectl cluster-info || exit 1
-          kubectl get nodes || exit 1
-
-      - name: Wait for cluster to be fully ready
-        run: |
-          echo "=== Waiting for cluster to be fully ready ==="
-          kubectl wait --for=condition=Ready nodes --all --timeout=300s || {
-            echo "Nodes not ready, showing debug info"
-            kubectl get nodes -o wide
-            kubectl describe nodes
-            exit 1
-          }
-          
-          echo "=== Waiting for system pods ==="
-          kubectl wait --for=condition=Ready pods --all -n kube-system --timeout=300s || {
-            echo "System pods not ready, showing debug info"
-            kubectl get pods -n kube-system
-            kubectl describe pods -n kube-system
-            exit 1
-          }
-
-      - name: Verify Minikube is running
+      - name: Verify Cluster
         run: |
           echo "=== Cluster info ==="
-          kubectl cluster-info || echo "Cluster info failed"
-          
-          echo "=== Nodes ==="
-          kubectl get nodes -o wide || echo "Get nodes failed"
-          
-          echo "=== Kubectl version ==="
-          kubectl version --client || echo "Kubectl version failed"
-          
-          echo "=== System pods ==="
-          kubectl get pods -n kube-system || echo "Get system pods failed"
+          kubectl cluster-info
+          kubectl get nodes -o wide
+          kubectl get pods -n kube-system
 
       - name: Set up Helm
         uses: azure/setup-helm@v4
@@ -129,157 +66,61 @@ jobs:
           kubectl create namespace monitoring
           kubectl get namespaces
 
-      - name: Verify storage provisioner
-        run: |
-          echo "Checking storage classes..."
-          kubectl get storageclass
-
-          echo "Checking if storage provisioner is ready..."
-          kubectl get pods -n kube-system | grep storage-provisioner || true
-
-          echo "Testing PVC creation..."
-          cat <<EOF | kubectl apply -f -
-          apiVersion: v1
-          kind: PersistentVolumeClaim
-          metadata:
-            name: test-pvc
-            namespace: airflow
-          spec:
-            accessModes:
-              - ReadWriteOnce
-            resources:
-              requests:
-                storage: 100Mi
-            storageClassName: standard
-          EOF
-
-          echo "Waiting for test PVC to be bound..."
-          kubectl wait --for=jsonpath='{.status.phase}'=Bound pvc/test-pvc -n airflow --timeout=2m || {
-            echo "Test PVC failed to bind, checking events..."
-            kubectl describe pvc test-pvc -n airflow
-            kubectl get events -n airflow
-            exit 1
-          }
-
-          echo "Test PVC bound successfully, cleaning up..."
-          kubectl delete pvc test-pvc -n airflow
-          echo "Storage provisioner is working correctly"
 
       - name: Add Airflow Helm repository
         run: |
-          echo "=== Adding Helm repo ==="
-          helm repo add apache-airflow https://airflow.apache.org || echo "Helm repo add failed"
-          
-          echo "=== Updating Helm repos ==="
-          helm repo update || echo "Helm repo update failed"
-          
-          echo "=== Searching for Airflow chart ==="
-          helm search repo apache-airflow/airflow || echo "Helm search failed"
+          helm repo add apache-airflow https://airflow.apache.org
+          helm repo update
 
       - name: Pre-pull Airflow images
         run: |
           echo "Pre-pulling images to avoid timeout during Helm install..."
-          minikube image pull apache/airflow:3.1.0-python3.12 || echo "Failed to pull Airflow image"
-          minikube image pull postgres:13 || echo "Failed to pull PostgreSQL image"
-          
-          echo "Checking loaded images..."
-          minikube image ls || echo "Failed to list images"
+          docker pull apache/airflow:3.1.0-python3.12
+          docker pull postgres:13
+          minikube image load apache/airflow:3.1.0-python3.12
+          minikube image load postgres:13
 
       - name: Install Airflow
         run: |
           echo "Installing Airflow with KubernetesExecutor (CI-optimized with emptyDir)..."
-
-          echo "=== Checking values file exists ==="
-          ls -la core/airflow/values-ci-emptydir.yaml || echo "Values file not found"
-          
-          echo "=== Validating values file syntax ==="
-          helm template test apache-airflow/airflow --values core/airflow/values-ci-emptydir.yaml --version 1.18.0 --dry-run || echo "Values file validation failed"
-
-          echo "=== Installing Airflow ==="
-          # Use emptyDir-based config for faster startup (no PVC provisioning delays)
           helm install airflow apache-airflow/airflow \
             --namespace airflow \
             --values core/airflow/values-ci-emptydir.yaml \
             --version 1.18.0 \
-            --wait \
-            --timeout 25m \
-            --atomic
+            --timeout 30m \
+            --debug
+        timeout-minutes: 35
 
-          echo "Airflow installation complete!"
-        timeout-minutes: 25
-
-      - name: Verify Airflow deployment
+      - name: Wait for Airflow pods
         run: |
-          echo "=== Checking Airflow pods ==="
-          kubectl get pods -n airflow -o wide || echo "Failed to get pods"
-
-          echo "=== Checking pod statuses ==="
-          kubectl get pods -n airflow -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.status.phase}{"\n"}{end}' || echo "Failed to get pod statuses"
-
-          echo "=== Checking all resources ==="
-          kubectl get all -n airflow || echo "Failed to get all resources"
-
-          echo "=== Checking events ==="
-          kubectl get events -n airflow --sort-by='.lastTimestamp' | tail -20 || echo "Failed to get events"
-
-          echo "=== Waiting for webserver to be ready ==="
+          echo "Waiting for webserver to be ready..."
           kubectl wait --for=condition=ready pod \
             -l component=webserver \
             -n airflow \
-            --timeout=300s || {
-              echo "Webserver failed to become ready, checking logs..."
-              kubectl logs -n airflow -l component=webserver --tail=100 || echo "Failed to get webserver logs"
-              kubectl describe pods -n airflow -l component=webserver || echo "Failed to describe webserver pods"
-              exit 1
-            }
+            --timeout=600s
 
-          echo "=== Waiting for scheduler to be ready ==="
+          echo "Waiting for scheduler to be ready..."
           kubectl wait --for=condition=ready pod \
             -l component=scheduler \
             -n airflow \
-            --timeout=300s || {
-              echo "Scheduler failed to become ready, checking logs..."
-              kubectl logs -n airflow -l component=scheduler --tail=100 || echo "Failed to get scheduler logs"
-              kubectl describe pods -n airflow -l component=scheduler || echo "Failed to describe scheduler pods"
-              exit 1
-            }
+            --timeout=600s
 
           echo "All Airflow components are ready!"
+          kubectl get pods -n airflow
 
-      - name: Check Airflow services
+      - name: Test Airflow webserver
         run: |
-          kubectl get svc -n airflow
-          kubectl get deployments -n airflow
-          kubectl get statefulsets -n airflow
-
-      - name: Test Airflow webserver connectivity
-        run: |
-          echo "Port-forwarding to Airflow webserver..."
           kubectl port-forward svc/airflow-webserver 8080:8080 -n airflow &
-          sleep 10
+          sleep 15
+          curl -f -s http://localhost:8080/login | grep -q "Airflow"
+          echo "Webserver is responding correctly!"
 
-          echo "Testing webserver health..."
-          curl -f http://localhost:8080/health || echo "Health check endpoint not available in this version"
-
-          echo "Testing webserver login page..."
-          curl -f -s http://localhost:8080/login | grep -q "Airflow" && echo "Webserver is responding!"
-
-      - name: Copy example DAG to Airflow
+      - name: Copy and verify DAG
         run: |
-          echo "Copying example DAG to scheduler pod..."
           SCHEDULER_POD=$(kubectl get pods -n airflow -l component=scheduler -o jsonpath='{.items[0].metadata.name}')
-          echo "Scheduler pod: $SCHEDULER_POD"
-
           kubectl cp examples/dags/example_kubernetes_pod.py airflow/$SCHEDULER_POD:/opt/airflow/dags/
-
-          echo "Waiting for DAG to be detected..."
           sleep 30
-
-      - name: Verify DAG is loaded
-        run: |
-          echo "Checking scheduler logs for DAG processing..."
-          SCHEDULER_POD=$(kubectl get pods -n airflow -l component=scheduler -o jsonpath='{.items[0].metadata.name}')
-          kubectl logs -n airflow $SCHEDULER_POD --tail=100 | grep -i "example_kubernetes_pod\|Processing file" || true
+          kubectl logs -n airflow $SCHEDULER_POD --tail=100 | grep -i "example_kubernetes_pod" || true
 
       - name: Check Airflow logs
         if: always()
