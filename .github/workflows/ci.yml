@@ -35,6 +35,12 @@ jobs:
             python "$dag"
           done
 
+      - name: Clean up any existing Minikube
+        run: |
+          echo "=== Cleaning up any existing Minikube instances ==="
+          minikube delete --all || echo "No existing Minikube instances to delete"
+          docker system prune -f || echo "Docker cleanup failed"
+
       - name: Start Minikube
         uses: medyagh/setup-minikube@v0.0.16
         with:
@@ -44,12 +50,55 @@ jobs:
           kubernetes-version: v1.30.0
           driver: docker
           container-runtime: docker
-          start-args: '--wait=all'
+          start-args: '--wait=all --delete-on-failure --force'
+        continue-on-error: false
+        timeout-minutes: 10
+
+      - name: Retry Minikube start if failed
+        if: failure()
+        run: |
+          echo "=== Minikube start failed, attempting manual retry ==="
+          minikube delete || echo "Delete failed"
+          sleep 10
+          
+          # First retry with same version
+          minikube start \
+            --cpus=2 \
+            --memory=4096mb \
+            --kubernetes-version=v1.30.0 \
+            --driver=docker \
+            --container-runtime=docker \
+            --wait=all \
+            --delete-on-failure \
+            --force || {
+              echo "First retry failed, trying with different Kubernetes version"
+              minikube delete || echo "Delete failed"
+              sleep 5
+              
+              # Second retry with stable version
+              minikube start \
+                --cpus=2 \
+                --memory=4096mb \
+                --kubernetes-version=v1.28.3 \
+                --driver=docker \
+                --container-runtime=docker \
+                --wait=all \
+                --delete-on-failure \
+                --force || {
+                  echo "All retries failed, showing debug info"
+                  minikube logs || echo "No logs available"
+                  docker ps -a || echo "No containers"
+                  exit 1
+                }
+            }
 
       - name: Debug Minikube status
         run: |
           echo "=== Minikube status ==="
           minikube status || echo "Minikube status failed"
+          
+          echo "=== Minikube logs (last 50 lines) ==="
+          minikube logs --length=50 || echo "Failed to get minikube logs"
           
           echo "=== Docker info ==="
           docker info || echo "Docker info failed"
@@ -59,6 +108,9 @@ jobs:
           
           echo "=== Available disk ==="
           df -h
+          
+          echo "=== Docker containers ==="
+          docker ps -a || echo "Failed to list containers"
 
       - name: Wait for cluster to be fully ready
         run: |
