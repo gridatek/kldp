@@ -1,0 +1,31 @@
+# KLDP Development Requirements
+# Install these to validate DAGs locally without running the full Kubernetes stack
+#
+# Usage:
+#   pip install -r requirements-dev.txt
+#
+# This allows you to:
+#   - Test DAG syntax: python examples/dags/my_dag.py
+#   - Run linters and validators
+#   - Develop DAGs locally before deploying
+
+# Core Airflow (matching production version)
+apache-airflow==3.1.0
+
+# Kubernetes provider (required for KubernetesPodOperator)
+apache-airflow-providers-cncf-kubernetes>=9.0.0
+
+# Spark provider (for future Spark integration)
+apache-airflow-providers-apache-spark>=4.10.0
+
+# Common data engineering libraries
+pandas>=2.2.3
+boto3>=1.35.36
+
+# Development tools
+yamllint>=1.35.1
+pylint>=3.0.0
+black>=24.0.0
+
+# Constraints file from Apache Airflow for Python 3.12
+# Use: pip install -r requirements-dev.txt --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-3.1.0/constraints-3.12.txt"

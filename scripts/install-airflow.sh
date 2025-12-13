@@ -4,9 +4,15 @@ set -e
 # KLDP - Install Apache Airflow
 # Installs Airflow with KubernetesExecutor optimized for local development
 
+# Get the directory where this script is located
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+# Get the project root directory (parent of scripts)
+PROJECT_ROOT="$( cd "$SCRIPT_DIR/.." && pwd )"
+
 NAMESPACE="airflow"
 RELEASE_NAME="airflow"
 CHART_VERSION=${KLDP_AIRFLOW_VERSION:-"1.18.0"}
+VALUES_FILE="$PROJECT_ROOT/core/airflow/values.yaml"
 
 echo "🚀 Installing Apache Airflow..."
 echo "  Namespace: $NAMESPACE"
@@ -35,7 +41,7 @@ if helm list -n $NAMESPACE | grep -q "^$RELEASE_NAME"; then
         echo "⬆️  Upgrading Airflow..."
         helm upgrade $RELEASE_NAME apache-airflow/airflow \
             --namespace $NAMESPACE \
-            --values ../core/airflow/values.yaml \
+            --values "$VALUES_FILE" \
             --version $CHART_VERSION
     else
         echo "Skipping installation"
@@ -47,7 +53,7 @@ else
     helm install $RELEASE_NAME apache-airflow/airflow \
         --namespace $NAMESPACE \
         --create-namespace \
-        --values ../core/airflow/values.yaml \
+        --values "$VALUES_FILE" \
         --version $CHART_VERSION
 fi
 
