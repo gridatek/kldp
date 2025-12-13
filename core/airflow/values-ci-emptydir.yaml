@@ -85,6 +85,12 @@ scheduler:
     limits:
       memory: "256Mi"
       cpu: "250m"
+  # Increase startup probe timeout for resource-constrained CI environment
+  startupProbe:
+    enabled: true
+    initialDelaySeconds: 30
+    periodSeconds: 10
+    failureThreshold: 60  # 10 minutes total timeout
 
 # Disable triggerer to save resources
 triggerer:
