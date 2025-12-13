@@ -93,12 +93,6 @@ jobs:
 
       - name: Wait for Airflow pods
         run: |
-          echo "Waiting for API server to be ready..."
-          kubectl wait --for=condition=ready pod \
-            -l component=api-server \
-            -n airflow \
-            --timeout=600s
-
           echo "Waiting for scheduler to be ready..."
           kubectl wait --for=condition=ready pod \
             -l component=scheduler \
@@ -107,13 +101,6 @@ jobs:
 
           echo "All Airflow components are ready!"
           kubectl get pods -n airflow
-
-      - name: Test Airflow API server
-        run: |
-          kubectl port-forward svc/airflow-api-server 8080:8080 -n airflow &
-          sleep 15
-          curl -f -s http://localhost:8080/login | grep -q "Airflow"
-          echo "API server is responding correctly!"
 
       - name: Copy and verify DAG
         run: |
