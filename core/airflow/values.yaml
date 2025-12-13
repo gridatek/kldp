@@ -39,6 +39,10 @@ webserver:
 # PostgreSQL configuration (built-in for simplicity)
 postgresql:
   enabled: true
+  image:
+    registry: docker.io
+    repository: bitnami/postgresql
+    tag: "latest"
   auth:
     enablePostgresUser: true
     postgresPassword: postgres
