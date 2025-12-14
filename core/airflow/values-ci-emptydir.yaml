@@ -80,17 +80,11 @@ scheduler:
   replicas: 1
   resources:
     requests:
-      memory: "128Mi"
+      memory: "256Mi"  # Increased for more reliable startup in CI
       cpu: "100m"
     limits:
-      memory: "256Mi"
+      memory: "512Mi"  # Increased for more reliable startup in CI
       cpu: "250m"
-  # Increase startup probe timeout for resource-constrained CI environment
-  startupProbe:
-    enabled: true
-    initialDelaySeconds: 30
-    periodSeconds: 10
-    failureThreshold: 60  # 10 minutes total timeout
 
 # Disable triggerer to save resources
 triggerer:
