@@ -77,8 +77,6 @@ jobs:
 
       - name: Install Airflow
         run: ./scripts/install-airflow.sh
-        env:
-          KLDP_AIRFLOW_VALUES_FILE: core/airflow/values-ci-emptydir.yaml
         timeout-minutes: 35
 
       - name: Wait for Airflow pods
@@ -101,8 +99,6 @@ jobs:
 
       - name: Install MinIO
         run: ./scripts/install-minio.sh
-        env:
-          KLDP_MINIO_VALUES_FILE: core/storage/minio-values-ci.yaml
         timeout-minutes: 15
 
       - name: Wait for MinIO pods
