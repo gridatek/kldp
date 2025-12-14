@@ -1,0 +1,73 @@
+apiVersion: sparkoperator.k8s.io/v1beta2
+kind: SparkApplication
+metadata:
+  name: spark-minio-example
+  namespace: spark
+spec:
+  type: Python
+  mode: cluster
+  image: "apache/spark-py:3.5.0"
+  imagePullPolicy: IfNotPresent
+  mainApplicationFile: "local:///opt/spark/examples/src/main/python/pi.py"
+  sparkVersion: "3.5.0"
+
+  # Hadoop/S3 configuration for MinIO
+  hadoopConf:
+    # MinIO endpoint
+    "fs.s3a.endpoint": "http://minio.storage.svc.cluster.local:9000"
+    # Use path-style access for MinIO
+    "fs.s3a.path.style.access": "true"
+    # S3A implementation
+    "fs.s3a.impl": "org.apache.hadoop.fs.s3a.S3AFileSystem"
+    # AWS SDK configuration
+    "fs.s3a.aws.credentials.provider": "org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider"
+    # Connection settings
+    "fs.s3a.connection.ssl.enabled": "false"
+
+  # Spark configuration
+  sparkConf:
+    # S3A settings
+    "spark.hadoop.fs.s3a.access.key": "minioadmin"
+    "spark.hadoop.fs.s3a.secret.key": "minioadmin"
+    # Kubernetes settings
+    "spark.kubernetes.allocation.batch.size": "2"
+    "spark.kubernetes.allocation.batch.delay": "1s"
+
+  # Restart policy
+  restartPolicy:
+    type: Never
+
+  # Driver configuration
+  driver:
+    cores: 1
+    coreLimit: "1200m"
+    memory: "512m"
+    labels:
+      version: 3.5.0
+      app: spark-minio
+    serviceAccount: spark
+    env:
+      - name: AWS_ACCESS_KEY_ID
+        value: "minioadmin"
+      - name: AWS_SECRET_ACCESS_KEY
+        value: "minioadmin"
+
+  # Executor configuration
+  executor:
+    cores: 1
+    instances: 2
+    memory: "512m"
+    labels:
+      version: 3.5.0
+      app: spark-minio
+    env:
+      - name: AWS_ACCESS_KEY_ID
+        value: "minioadmin"
+      - name: AWS_SECRET_ACCESS_KEY
+        value: "minioadmin"
+
+  # Dependencies for S3/MinIO access
+  deps:
+    jars:
+      - https://repo1.maven.org/maven2/org/apache/hadoop/hadoop-aws/3.3.4/hadoop-aws-3.3.4.jar
+      - https://repo1.maven.org/maven2/com/amazonaws/aws-java-sdk-bundle/1.12.262/aws-java-sdk-bundle-1.12.262.jar

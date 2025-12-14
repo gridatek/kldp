@@ -10,8 +10,9 @@ Current components:
 - Apache Airflow 3.1.0 with KubernetesExecutor (Python 3.12)
 - PostgreSQL (metadata database)
 - MinIO (S3-compatible object storage)
+- Spark Operator (for running Spark jobs on Kubernetes)
 
-Planned components: Spark Operator, Prometheus/Grafana, Kafka, JupyterHub
+Planned components: Prometheus/Grafana, Kafka, JupyterHub
 
 ## Development Environment Setup
 
