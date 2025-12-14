@@ -29,3 +29,6 @@ service:
 
 # Default buckets to create on startup
 defaultBuckets: "datalake,raw,processed,curated"
+
+# Let Helm chart use default image tags (more reliable)
+# The chart will pull the correct compatible versions
