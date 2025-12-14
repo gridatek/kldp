@@ -12,7 +12,8 @@ PROJECT_ROOT="$( cd "$SCRIPT_DIR/.." && pwd )"
 NAMESPACE="airflow"
 RELEASE_NAME="airflow"
 CHART_VERSION=${KLDP_AIRFLOW_VERSION:-"1.18.0"}
-VALUES_FILE="$PROJECT_ROOT/core/airflow/values.yaml"
+# Allow override of values file via environment variable (for CI)
+VALUES_FILE="${KLDP_AIRFLOW_VALUES_FILE:-$PROJECT_ROOT/core/airflow/values.yaml}"
 
 echo "🚀 Installing Apache Airflow..."
 echo "  Namespace: $NAMESPACE"

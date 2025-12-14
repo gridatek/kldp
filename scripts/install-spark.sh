@@ -13,7 +13,8 @@ SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 # Get the project root directory (parent of scripts)
 PROJECT_ROOT="$( cd "$SCRIPT_DIR/.." && pwd )"
 
-VALUES_FILE="$PROJECT_ROOT/core/compute/spark-operator-values.yaml"
+# Allow override of values file via environment variable (for CI)
+VALUES_FILE="${KLDP_SPARK_VALUES_FILE:-$PROJECT_ROOT/core/compute/spark-operator-values.yaml}"
 
 # Check if values file exists
 if [ ! -f "$VALUES_FILE" ]; then
