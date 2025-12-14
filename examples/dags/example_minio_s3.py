@@ -38,7 +38,7 @@ with DAG(
     'example_minio_s3_operations',
     default_args=default_args,
     description='Example DAG showing MinIO S3 operations',
-    schedule_interval=None,  # Manual trigger only
+    schedule=None,  # Manual trigger only (Airflow 3.x syntax)
     start_date=datetime(2025, 1, 1),
     catchup=False,
     tags=['example', 'minio', 's3', 'storage'],
