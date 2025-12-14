@@ -97,15 +97,8 @@ scheduler:
       cpu: "500m"
 
 triggerer:
-  enabled: true
-  replicas: 1
-  resources:
-    requests:
-      memory: "128Mi"
-      cpu: "100m"
-    limits:
-      memory: "256Mi"
-      cpu: "200m"
+  enabled: false
+  replicas: 0
 
 # Worker pod configuration for KubernetesExecutor
 workers:

@@ -63,7 +63,7 @@ echo "⏳ Waiting for Airflow to be ready..."
 kubectl wait --for=condition=ready pod \
     -l component=scheduler \
     -n $NAMESPACE \
-    --timeout=300s
+    --timeout=600s
 
 echo ""
 echo "✅ Airflow installed successfully!"
