@@ -111,14 +111,14 @@ jobs:
 
       - name: Install MinIO
         run: |
-          echo "Installing MinIO object storage..."
+          echo "Installing MinIO object storage (CI-optimized)..."
           helm install minio oci://registry-1.docker.io/bitnamicharts/minio \
             --namespace storage \
-            --values core/storage/minio-values.yaml \
+            --values core/storage/minio-values-ci.yaml \
             --version 17.0.21 \
             --wait \
-            --timeout 15m
-        timeout-minutes: 20
+            --timeout 10m
+        timeout-minutes: 15
 
       - name: Wait for MinIO pods
         run: |
