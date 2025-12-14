@@ -9,7 +9,7 @@ KLDP (Kubernetes Local Data Platform) is a batteries-included local data enginee
 Current components:
 - Apache Airflow 3.1.0 with KubernetesExecutor (Python 3.12)
 - PostgreSQL (metadata database)
-- MinIO (S3-compatible object storage, planned)
+- MinIO (S3-compatible object storage)
 
 Planned components: Spark Operator, Prometheus/Grafana, Kafka, JupyterHub
 
@@ -57,6 +57,33 @@ kubectl port-forward svc/airflow-webserver 8080:8080 -n airflow
 # Option 2: Minikube service
 minikube service airflow-webserver -n airflow
 ```
+
+### Install MinIO
+```bash
+# From repository root
+./scripts/install-minio.sh
+
+# Or using Makefile
+make install-minio
+```
+
+Default credentials: minioadmin/minioadmin
+
+### Access MinIO Console
+```bash
+# Console UI (Web Interface)
+kubectl port-forward svc/minio 9001:9001 -n storage
+# Then open http://localhost:9001
+
+# S3 API Endpoint
+kubectl port-forward svc/minio 9000:9000 -n storage
+
+# Or using Makefile
+make minio-console  # Console UI
+make minio-api      # S3 API
+```
+
+See [MinIO Setup Guide](docs/MINIO_SETUP.md) for detailed documentation.
 
 ## Common Commands
 

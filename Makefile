@@ -1,7 +1,7 @@
 # KLDP Makefile
 # Convenience commands for managing the KLDP platform
 
-.PHONY: help check-prereq install-dev init-cluster install-airflow start stop clean validate
+.PHONY: help check-prereq install-dev init-cluster install-airflow install-minio start stop clean validate
 
 help: ## Show this help message
 	@echo "KLDP - Kubernetes Local Data Platform"
@@ -28,6 +28,9 @@ init-cluster: ## Initialize Minikube cluster
 
 install-airflow: ## Install Airflow on the cluster
 	@./scripts/install-airflow.sh
+
+install-minio: ## Install MinIO object storage on the cluster
+	@./scripts/install-minio.sh
 
 start: ## Start the KLDP cluster
 	@echo "Starting KLDP cluster..."
@@ -70,13 +73,27 @@ airflow-ui: ## Open Airflow UI
 	@echo "Default credentials: admin/admin"
 	minikube service airflow-webserver -n airflow
 
+minio-console: ## Port forward MinIO console
+	@echo "Port forwarding MinIO console..."
+	@echo "Console will be available at: http://localhost:9001"
+	@echo "Credentials: minioadmin/minioadmin"
+	kubectl port-forward svc/minio 9001:9001 -n storage
+
+minio-api: ## Port forward MinIO S3 API
+	@echo "Port forwarding MinIO S3 API..."
+	@echo "API will be available at: http://localhost:9000"
+	kubectl port-forward svc/minio 9000:9000 -n storage
+
 logs-scheduler: ## Show Airflow scheduler logs
 	kubectl logs -n airflow -l component=scheduler -f
 
 logs-webserver: ## Show Airflow webserver logs
 	kubectl logs -n airflow -l component=webserver -f
 
-status: ## Show cluster and Airflow status
+logs-minio: ## Show MinIO logs
+	kubectl logs -n storage -l app.kubernetes.io/name=minio -f
+
+status: ## Show cluster and component status
 	@echo "=== Cluster Status ==="
 	@minikube status -p kldp || echo "Cluster not running"
 	@echo ""
@@ -85,3 +102,9 @@ status: ## Show cluster and Airflow status
 	@echo ""
 	@echo "=== Airflow Release ==="
 	@helm status airflow -n airflow 2>/dev/null || echo "Airflow not installed"
+	@echo ""
+	@echo "=== MinIO Pods ==="
+	@kubectl get pods -n storage || echo "MinIO not installed"
+	@echo ""
+	@echo "=== MinIO Release ==="
+	@helm status minio -n storage 2>/dev/null || echo "MinIO not installed"

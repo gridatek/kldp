@@ -1,0 +1,31 @@
+# KLDP MinIO Configuration
+# S3-compatible object storage for local data lake development
+
+# Deployment mode - standalone for local development
+mode: standalone
+
+# Authentication
+auth:
+  rootUser: minioadmin
+  rootPassword: minioadmin
+
+# Resource limits for local development
+resources:
+  requests:
+    memory: "256Mi"
+    cpu: "100m"
+  limits:
+    memory: "512Mi"
+    cpu: "500m"
+
+# Persistence configuration
+persistence:
+  enabled: true
+  size: 10Gi
+
+# Service configuration
+service:
+  type: NodePort
+
+# Default buckets to create on startup
+defaultBuckets: "datalake,raw,processed,curated"
