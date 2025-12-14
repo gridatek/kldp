@@ -11,8 +11,9 @@ Current components:
 - PostgreSQL (metadata database)
 - MinIO (S3-compatible object storage)
 - Spark Operator (for running Spark jobs on Kubernetes)
+- Prometheus/Grafana (monitoring and observability stack)
 
-Planned components: Prometheus/Grafana, Kafka, JupyterHub
+Planned components: Kafka, JupyterHub
 
 ## Development Environment Setup
 
@@ -298,21 +299,22 @@ The CI workflow:
 1. Validates all DAG files can be parsed by Airflow 3.1.0
 2. Spins up Minikube with reduced resources (2 CPUs, 4GB RAM)
 3. Pre-pulls Docker images to avoid timeout issues
-4. Installs Airflow using CI-optimized configuration (core/airflow/values-ci.yaml)
+4. Installs all components using the SAME scripts and values files as local development
 5. Verifies all components are healthy
 6. Tests DAG deployment and detection
 
-**CI-Optimized Configuration (values-ci-emptydir.yaml):**
-The CI environment uses a separate Helm values file optimized for GitHub Actions:
-- Reduced resource requests/limits (256Mi/512Mi RAM per component)
-- Triggerer disabled to save resources (not needed for validation)
-- API Server disabled (replicas: 0) to save resources (new in Airflow 3.x, not needed for validation)
-- Example DAGs disabled for faster startup
-- **emptyDir volumes instead of PVCs** for DAGs, logs, and PostgreSQL (eliminates PVC provisioning delays)
-- PostgreSQL with minimal resources (128Mi/256Mi RAM)
-- Reduced parallelism settings
+**Single Source of Truth:**
+CI uses the exact same installation scripts and values files as local development:
+- `./scripts/install-airflow.sh` with `core/airflow/values.yaml`
+- `./scripts/install-minio.sh` with `core/storage/minio-values.yaml`
+- `./scripts/install-spark.sh` with `core/compute/spark-operator-values.yaml`
+- `./scripts/install-monitoring.sh` with `core/monitoring/prometheus-grafana-values.yaml`
 
-**Important**: The CI configuration uses `emptyDir` volumes instead of PersistentVolumeClaims to avoid storage provisioning delays in CI environments. This means data is ephemeral and lost when pods restart, which is acceptable for CI validation purposes.
+This ensures:
+- CI validates the real configuration users run locally
+- If it works locally, it works in CI
+- No configuration drift between environments
+- Easier debugging: test locally with same setup as CI
 
 **Running CI checks locally:**
 ```bash
@@ -324,42 +326,25 @@ shellcheck scripts/*.sh
 
 # Validate YAML files
 yamllint -d relaxed core/airflow/values.yaml
-yamllint -d relaxed core/airflow/values-ci-emptydir.yaml
+yamllint -d relaxed core/storage/minio-values.yaml
 
-# Test CI-optimized installation (requires clean Minikube setup)
-minikube start --cpus=2 --memory=4096 --profile=kldp-ci
-kubectl create namespace airflow
-helm install airflow apache-airflow/airflow \
-  --namespace airflow \
-  --values core/airflow/values-ci-emptydir.yaml \
-  --version 1.18.0 \
-  --wait \
-  --timeout 15m
+# Test full installation locally (same as CI)
+./scripts/init-cluster.sh
+./scripts/install-airflow.sh
+./scripts/install-minio.sh
+./scripts/install-spark.sh
+./scripts/install-monitoring.sh
 ```
 
 **Common CI Issues:**
 
-1. **Timeout during Helm install**: Usually caused by slow image pulls or insufficient resources
-   - Solution: Images are pre-pulled in CI workflow
-   - Timeout increased to 20 minutes for reliability
+1. **Timeout during Helm install**: Usually caused by slow image pulls
+   - Solution: Images are pre-pulled in CI workflow before Helm install
+   - Generous timeouts configured (30-35 minutes for Airflow)
 
-2. **PostgreSQL not becoming ready**: Database initialization can be slow with limited resources
-   - Solution: Reduced PostgreSQL resource requirements
-   - Uses emptyDir for PostgreSQL data (acceptable for CI validation)
-
-3. **PersistentVolumeClaim provisioning timeouts**: Storage provisioning can take 15+ minutes in CI
-   - Solution: Use emptyDir volumes instead of PVCs in values-ci-emptydir.yaml
-   - Eliminates storage provisioning delays entirely
-   - Data is ephemeral but acceptable for CI validation
-
-4. **Out of memory errors**: CI environment has strict memory limits
-   - Solution: All components configured with appropriate limits
-   - Triggerer and API Server disabled to free up resources
-
-5. **API Server not becoming ready** (Airflow 3.x): New component that may fail in resource-constrained environments
-   - Solution: API Server disabled by setting `apiServer.replicas: 0`
-   - Note: apiServer doesn't have an `enabled` field in the Helm chart, use `replicas: 0` instead
-   - Not required for basic DAG validation and testing
+2. **PersistentVolumeClaim provisioning**: Storage provisioning can take time in CI
+   - Solution: Standard Minikube storage class is used, usually provisions quickly
+   - If issues occur locally, check: `kubectl get pvc -n <namespace>`
 
 ## System Requirements
 

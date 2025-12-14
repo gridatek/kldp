@@ -16,11 +16,11 @@ webserver:
   replicas: 1
   resources:
     requests:
+      memory: "256Mi"
+      cpu: "200m"
+    limits:
       memory: "512Mi"
       cpu: "500m"
-    limits:
-      memory: "1Gi"
-      cpu: "1000m"
   defaultUser:
     enabled: true
     role: Admin
@@ -85,36 +85,30 @@ logs:
     storageClassName: standard
 
 # Resource configuration for Airflow components
+# Optimized for both local development and CI
 scheduler:
   replicas: 1
   resources:
     requests:
+      memory: "256Mi"
+      cpu: "200m"
+    limits:
       memory: "512Mi"
       cpu: "500m"
-    limits:
-      memory: "1Gi"
-      cpu: "1000m"
 
 triggerer:
-  enabled: true
-  replicas: 1
-  resources:
-    requests:
-      memory: "256Mi"
-      cpu: "250m"
-    limits:
-      memory: "512Mi"
-      cpu: "500m"
+  enabled: false
+  replicas: 0
 
 # Worker pod configuration for KubernetesExecutor
 workers:
   resources:
     requests:
+      memory: "256Mi"
+      cpu: "200m"
+    limits:
       memory: "512Mi"
       cpu: "500m"
-    limits:
-      memory: "1Gi"
-      cpu: "1000m"
 
 # Configuration for database migrations
 createUserJob:

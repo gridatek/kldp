@@ -12,7 +12,8 @@ PROJECT_ROOT="$( cd "$SCRIPT_DIR/.." && pwd )"
 NAMESPACE="airflow"
 RELEASE_NAME="airflow"
 CHART_VERSION=${KLDP_AIRFLOW_VERSION:-"1.18.0"}
-VALUES_FILE="$PROJECT_ROOT/core/airflow/values.yaml"
+# Allow override of values file via environment variable (for CI)
+VALUES_FILE="${KLDP_AIRFLOW_VALUES_FILE:-$PROJECT_ROOT/core/airflow/values.yaml}"
 
 echo "🚀 Installing Apache Airflow..."
 echo "  Namespace: $NAMESPACE"
@@ -60,9 +61,9 @@ fi
 echo ""
 echo "⏳ Waiting for Airflow to be ready..."
 kubectl wait --for=condition=ready pod \
-    -l component=webserver \
+    -l component=scheduler \
     -n $NAMESPACE \
-    --timeout=300s
+    --timeout=600s
 
 echo ""
 echo "✅ Airflow installed successfully!"
@@ -72,12 +73,13 @@ echo "  Username: admin"
 echo "  Password: admin"
 echo ""
 echo "🌐 Access Airflow UI:"
-echo "  Option 1: kubectl port-forward svc/$RELEASE_NAME-webserver 8080:8080 -n $NAMESPACE"
-echo "  Option 2: minikube service $RELEASE_NAME-webserver -n $NAMESPACE"
+echo "  kubectl port-forward svc/$RELEASE_NAME-api-server 8080:8080 -n $NAMESPACE"
+echo "  Then open: http://localhost:8080"
 echo ""
 echo "📂 Add your DAGs to: ./examples/dags/"
 echo ""
 echo "Useful commands:"
 echo "  kubectl get pods -n $NAMESPACE"
-echo "  kubectl logs -n $NAMESPACE -l component=webserver -f"
+echo "  kubectl logs -n $NAMESPACE -l component=scheduler -f"
+echo "  kubectl logs -n $NAMESPACE -l component=api-server -f"
 echo "  helm status $RELEASE_NAME -n $NAMESPACE"

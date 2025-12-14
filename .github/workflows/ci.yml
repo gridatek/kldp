@@ -11,7 +11,7 @@ jobs:
   validate-setup:
     name: Validate KLDP Setup
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 90
 
     steps:
       - name: Checkout code
@@ -67,11 +67,6 @@ jobs:
           kubectl get namespaces
 
 
-      - name: Add Airflow Helm repository
-        run: |
-          helm repo add apache-airflow https://airflow.apache.org
-          helm repo update
-
       - name: Pre-pull Airflow images
         run: |
           echo "Pre-pulling images to avoid timeout during Helm install..."
@@ -81,14 +76,7 @@ jobs:
           minikube image load postgres:13
 
       - name: Install Airflow
-        run: |
-          echo "Installing Airflow with KubernetesExecutor (CI-optimized with emptyDir)..."
-          helm install airflow apache-airflow/airflow \
-            --namespace airflow \
-            --values core/airflow/values-ci-emptydir.yaml \
-            --version 1.18.0 \
-            --timeout 30m \
-            --debug
+        run: ./scripts/install-airflow.sh
         timeout-minutes: 35
 
       - name: Wait for Airflow pods
@@ -109,6 +97,73 @@ jobs:
           sleep 30
           kubectl logs -n airflow $SCHEDULER_POD --tail=100 | grep -i "example_kubernetes_pod" || true
 
+      - name: Install MinIO
+        run: ./scripts/install-minio.sh
+        timeout-minutes: 15
+
+      - name: Wait for MinIO pods
+        run: |
+          echo "Waiting for MinIO to be ready..."
+          kubectl wait --for=condition=ready pod \
+            -l app.kubernetes.io/name=minio \
+            -n storage \
+            --timeout=600s
+
+          echo "MinIO is ready!"
+          kubectl get pods -n storage
+
+      - name: Install Spark Operator
+        run: ./scripts/install-spark.sh
+        timeout-minutes: 15
+
+      - name: Wait for Spark Operator pods
+        run: |
+          echo "Waiting for Spark Operator to be ready..."
+          kubectl wait --for=condition=ready pod \
+            -l app.kubernetes.io/name=spark-operator \
+            -n spark \
+            --timeout=300s
+
+          echo "Spark Operator is ready!"
+          kubectl get pods -n spark
+
+      - name: Install Monitoring Stack
+        run: ./scripts/install-monitoring.sh
+        timeout-minutes: 20
+
+      - name: Wait for Monitoring pods
+        run: |
+          echo "Waiting for Prometheus to be ready..."
+          kubectl wait --for=condition=ready pod \
+            -l app.kubernetes.io/name=prometheus \
+            -n monitoring \
+            --timeout=600s
+
+          echo "Waiting for Grafana to be ready..."
+          kubectl wait --for=condition=ready pod \
+            -l app.kubernetes.io/name=grafana \
+            -n monitoring \
+            --timeout=600s
+
+          echo "Monitoring stack is ready!"
+          kubectl get pods -n monitoring
+
+      - name: Verify all components
+        run: |
+          echo "=== Component Status ==="
+          echo ""
+          echo "Airflow:"
+          kubectl get pods -n airflow
+          echo ""
+          echo "MinIO:"
+          kubectl get pods -n storage
+          echo ""
+          echo "Spark Operator:"
+          kubectl get pods -n spark
+          echo ""
+          echo "Monitoring:"
+          kubectl get pods -n monitoring
+
       - name: Check Airflow logs
         if: always()
         run: |
@@ -124,25 +179,49 @@ jobs:
       - name: Get all resources
         if: always()
         run: |
-          echo "=== All Pods ==="
+          echo "=== Airflow Pods ==="
           kubectl get pods -n airflow -o wide
-
+          echo ""
+          echo "=== MinIO Pods ==="
+          kubectl get pods -n storage -o wide
+          echo ""
+          echo "=== Spark Pods ==="
+          kubectl get pods -n spark -o wide
+          echo ""
+          echo "=== Monitoring Pods ==="
+          kubectl get pods -n monitoring -o wide
+          echo ""
           echo "=== All Services ==="
-          kubectl get svc -n airflow
-
+          kubectl get svc --all-namespaces
+          echo ""
           echo "=== All PVCs ==="
-          kubectl get pvc -n airflow
-
-          echo "=== Events ==="
+          kubectl get pvc --all-namespaces
+          echo ""
+          echo "=== Airflow Events ==="
           kubectl get events -n airflow --sort-by='.lastTimestamp' | tail -20
+          echo ""
+          echo "=== Storage Events ==="
+          kubectl get events -n storage --sort-by='.lastTimestamp' | tail -20
+          echo ""
+          echo "=== Spark Events ==="
+          kubectl get events -n spark --sort-by='.lastTimestamp' | tail -20
+          echo ""
+          echo "=== Monitoring Events ==="
+          kubectl get events -n monitoring --sort-by='.lastTimestamp' | tail -20
 
       - name: Describe failed pods
         if: failure()
         run: |
-          echo "Describing any failed/pending pods..."
-          kubectl get pods -n airflow --field-selector=status.phase!=Running,status.phase!=Succeeded -o name | while read pod; do
-            echo "=== Describing $pod ==="
-            kubectl describe -n airflow $pod
+          echo "Describing any failed/pending pods in all namespaces..."
+
+          for ns in airflow storage spark monitoring; do
+            echo "=== Checking namespace: $ns ==="
+            kubectl get pods -n $ns --field-selector=status.phase!=Running,status.phase!=Succeeded -o name | while read pod; do
+              if [ -n "$pod" ]; then
+                echo "=== Describing $pod in $ns ==="
+                kubectl describe -n $ns $pod
+              fi
+            done
           done
 
   validate-scripts:

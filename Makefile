@@ -1,7 +1,7 @@
 # KLDP Makefile
 # Convenience commands for managing the KLDP platform
 
-.PHONY: help check-prereq install-dev init-cluster install-airflow install-minio install-spark start stop clean validate
+.PHONY: help check-prereq install-dev init-cluster install-airflow install-minio install-spark install-monitoring start stop clean validate
 
 help: ## Show this help message
 	@echo "KLDP - Kubernetes Local Data Platform"
@@ -34,6 +34,9 @@ install-minio: ## Install MinIO object storage on the cluster
 
 install-spark: ## Install Spark Operator on the cluster
 	@./scripts/install-spark.sh
+
+install-monitoring: ## Install Prometheus/Grafana monitoring stack
+	@./scripts/install-monitoring.sh
 
 start: ## Start the KLDP cluster
 	@echo "Starting KLDP cluster..."
@@ -102,6 +105,22 @@ logs-spark: ## Show Spark Operator logs
 spark-apps: ## List Spark applications
 	@kubectl get sparkapplications -n spark
 
+grafana: ## Port forward Grafana dashboard
+	@echo "Port forwarding Grafana dashboard..."
+	@echo "Dashboard will be available at: http://localhost:3000"
+	@echo "Credentials: admin/admin"
+	kubectl port-forward svc/kube-prometheus-stack-grafana 3000:80 -n monitoring
+
+prometheus: ## Port forward Prometheus UI
+	@echo "Port forwarding Prometheus UI..."
+	@echo "UI will be available at: http://localhost:9090"
+	kubectl port-forward svc/kube-prometheus-stack-prometheus 9090:9090 -n monitoring
+
+alertmanager: ## Port forward Alertmanager UI
+	@echo "Port forwarding Alertmanager UI..."
+	@echo "UI will be available at: http://localhost:9093"
+	kubectl port-forward svc/kube-prometheus-stack-alertmanager 9093:9093 -n monitoring
+
 status: ## Show cluster and component status
 	@echo "=== Cluster Status ==="
 	@minikube status -p kldp || echo "Cluster not running"
@@ -126,3 +145,9 @@ status: ## Show cluster and component status
 	@echo ""
 	@echo "=== Spark Applications ==="
 	@kubectl get sparkapplications -n spark 2>/dev/null || echo "No Spark applications running"
+	@echo ""
+	@echo "=== Monitoring Pods ==="
+	@kubectl get pods -n monitoring || echo "Monitoring not installed"
+	@echo ""
+	@echo "=== Monitoring Release ==="
+	@helm status kube-prometheus-stack -n monitoring 2>/dev/null || echo "Monitoring not installed"
