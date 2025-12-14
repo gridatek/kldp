@@ -83,31 +83,31 @@ jobs:
 
           echo "Trying to pull bitnami/minio:latest..."
           if docker pull bitnami/minio:latest; then
-            echo "✓ Successfully pulled bitnami/minio:latest"
+            echo "[OK] Successfully pulled bitnami/minio:latest"
             echo "Loading into Minikube..."
             minikube image load bitnami/minio:latest
           else
-            echo "✗ Failed to pull bitnami/minio:latest"
+            echo "[FAIL] Failed to pull bitnami/minio:latest"
           fi
           echo ""
 
           echo "Trying to pull bitnami/minio:2025.7.23-debian-12-r3..."
           if docker pull bitnami/minio:2025.7.23-debian-12-r3; then
-            echo "✓ Successfully pulled bitnami/minio:2025.7.23-debian-12-r3"
+            echo "[OK] Successfully pulled bitnami/minio:2025.7.23-debian-12-r3"
             echo "Loading into Minikube..."
             minikube image load bitnami/minio:2025.7.23-debian-12-r3
           else
-            echo "✗ Failed to pull bitnami/minio:2025.7.23-debian-12-r3"
+            echo "[FAIL] Failed to pull bitnami/minio:2025.7.23-debian-12-r3"
           fi
           echo ""
 
           echo "Trying to pull bitnami/minio-client:latest..."
           if docker pull bitnami/minio-client:latest; then
-            echo "✓ Successfully pulled bitnami/minio-client:latest"
+            echo "[OK] Successfully pulled bitnami/minio-client:latest"
             echo "Loading into Minikube..."
             minikube image load bitnami/minio-client:latest
           else
-            echo "✗ Failed to pull bitnami/minio-client:latest"
+            echo "[FAIL] Failed to pull bitnami/minio-client:latest"
           fi
           echo ""
 
@@ -158,9 +158,9 @@ jobs:
         run: |
           echo "=== Describing MinIO pods ==="
           for pod in $(kubectl get pods -n storage -o name); do
-            echo "════════════════════════════════════════"
+            echo "========================================"
             echo "Pod: $pod"
-            echo "════════════════════════════════════════"
+            echo "========================================"
             kubectl describe -n storage $pod
             echo ""
           done
@@ -247,12 +247,12 @@ EOF
       - name: Final diagnostic summary
         if: always()
         run: |
-          echo "════════════════════════════════════════════════════════════"
+          echo "============================================================"
           echo "                   DIAGNOSTIC SUMMARY"
-          echo "════════════════════════════════════════════════════════════"
+          echo "============================================================"
           echo ""
           echo "Registry Connectivity:"
-          curl -I https://registry-1.docker.io/v2/ && echo "✓ Registry reachable" || echo "✗ Registry unreachable"
+          curl -I https://registry-1.docker.io/v2/ && echo "[OK] Registry reachable" || echo "[FAIL] Registry unreachable"
           echo ""
           echo "Minikube Status:"
           minikube status
@@ -269,4 +269,4 @@ EOF
           echo "Recent Events:"
           kubectl get events -n storage --sort-by='.lastTimestamp' | tail -20
           echo ""
-          echo "════════════════════════════════════════════════════════════"
+          echo "============================================================"
