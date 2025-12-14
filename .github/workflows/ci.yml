@@ -110,14 +110,9 @@ jobs:
           kubectl logs -n airflow $SCHEDULER_POD --tail=100 | grep -i "example_kubernetes_pod" || true
 
       - name: Install MinIO
-        run: |
-          echo "Installing MinIO object storage (CI-optimized)..."
-          helm install minio oci://registry-1.docker.io/bitnamicharts/minio \
-            --namespace storage \
-            --values core/storage/minio-values-ci.yaml \
-            --version 17.0.21 \
-            --wait \
-            --timeout 10m
+        run: ./scripts/install-minio.sh
+        env:
+          KLDP_MINIO_VALUES_FILE: core/storage/minio-values-ci.yaml
         timeout-minutes: 15
 
       - name: Wait for MinIO pods

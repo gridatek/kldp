@@ -122,14 +122,9 @@ jobs:
           echo ""
           cat core/storage/minio-values-ci.yaml
           echo ""
-          echo "Installing with Helm (verbose mode)..."
-          helm install minio oci://registry-1.docker.io/bitnamicharts/minio \
-            --namespace storage \
-            --values core/storage/minio-values-ci.yaml \
-            --version 17.0.21 \
-            --wait \
-            --timeout 10m \
-            --debug
+          ./scripts/install-minio.sh
+        env:
+          KLDP_MINIO_VALUES_FILE: core/storage/minio-values-ci.yaml
         timeout-minutes: 15
 
       - name: Check MinIO deployment status
