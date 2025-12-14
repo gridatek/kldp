@@ -11,8 +11,9 @@ Current components:
 - PostgreSQL (metadata database)
 - MinIO (S3-compatible object storage)
 - Spark Operator (for running Spark jobs on Kubernetes)
+- Prometheus/Grafana (monitoring and observability stack)
 
-Planned components: Prometheus/Grafana, Kafka, JupyterHub
+Planned components: Kafka, JupyterHub
 
 ## Development Environment Setup
 

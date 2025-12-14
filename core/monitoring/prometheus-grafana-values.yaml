@@ -1,0 +1,233 @@
+# KLDP Prometheus/Grafana Configuration
+# Monitoring and observability stack optimized for local development
+
+# Global settings
+fullnameOverride: ""
+nameOverride: ""
+
+# Default rules for Kubernetes monitoring
+defaultRules:
+  create: true
+  rules:
+    alertmanager: true
+    etcd: false  # Not needed for Minikube
+    configReloaders: true
+    general: true
+    k8s: true
+    kubeApiserverAvailability: true
+    kubeApiserverSlos: false
+    kubelet: true
+    kubeProxy: false
+    kubePrometheusGeneral: true
+    kubePrometheusNodeRecording: true
+    kubernetesApps: true
+    kubernetesResources: true
+    kubernetesStorage: true
+    kubernetesSystem: true
+    kubeScheduler: false
+    kubeStateMetrics: true
+    network: true
+    node: true
+    nodeExporterAlerting: true
+    nodeExporterRecording: true
+    prometheus: true
+    prometheusOperator: true
+
+# Alertmanager configuration
+alertmanager:
+  enabled: true
+
+  alertmanagerSpec:
+    # Resource limits
+    resources:
+      requests:
+        memory: "64Mi"
+        cpu: "50m"
+      limits:
+        memory: "128Mi"
+        cpu: "100m"
+
+    # Storage
+    storage:
+      volumeClaimTemplate:
+        spec:
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 2Gi
+
+  # Service configuration
+  service:
+    type: NodePort
+
+# Grafana configuration
+grafana:
+  enabled: true
+
+  # Admin credentials
+  adminPassword: admin
+
+  # Resource limits
+  resources:
+    requests:
+      memory: "128Mi"
+      cpu: "100m"
+    limits:
+      memory: "256Mi"
+      cpu: "200m"
+
+  # Persistence
+  persistence:
+    enabled: true
+    size: 2Gi
+
+  # Service configuration
+  service:
+    type: NodePort
+    port: 80
+
+  # Default dashboards
+  defaultDashboardsEnabled: true
+  defaultDashboardsTimezone: UTC
+
+  # Additional data sources
+  additionalDataSources: []
+
+  # Grafana ini configuration
+  grafana.ini:
+    analytics:
+      check_for_updates: false
+    server:
+      domain: localhost
+      root_url: "%(protocol)s://%(domain)s:%(http_port)s/grafana/"
+      serve_from_sub_path: true
+
+# Prometheus configuration
+prometheus:
+  enabled: true
+
+  prometheusSpec:
+    # Retention
+    retention: 7d
+    retentionSize: "4GB"
+
+    # Resource limits
+    resources:
+      requests:
+        memory: "512Mi"
+        cpu: "200m"
+      limits:
+        memory: "1Gi"
+        cpu: "500m"
+
+    # Storage
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 5Gi
+
+    # Service monitors - automatically discover services
+    serviceMonitorSelectorNilUsesHelmValues: false
+    podMonitorSelectorNilUsesHelmValues: false
+
+    # Additional scrape configs for KLDP components
+    additionalScrapeConfigs:
+      # Airflow metrics (if enabled)
+      - job_name: 'airflow'
+        kubernetes_sd_configs:
+          - role: pod
+            namespaces:
+              names:
+                - airflow
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_pod_label_component]
+            regex: webserver|scheduler
+            action: keep
+          - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+            regex: "true"
+            action: keep
+
+      # MinIO metrics
+      - job_name: 'minio'
+        kubernetes_sd_configs:
+          - role: pod
+            namespaces:
+              names:
+                - storage
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_pod_label_app_kubernetes_io_name]
+            regex: minio
+            action: keep
+
+      # Spark Operator metrics
+      - job_name: 'spark-operator'
+        kubernetes_sd_configs:
+          - role: pod
+            namespaces:
+              names:
+                - spark
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_pod_label_app_kubernetes_io_name]
+            regex: spark-operator
+            action: keep
+
+  # Service configuration
+  service:
+    type: NodePort
+
+# Prometheus Operator
+prometheusOperator:
+  enabled: true
+
+  resources:
+    requests:
+      memory: "64Mi"
+      cpu: "50m"
+    limits:
+      memory: "128Mi"
+      cpu: "100m"
+
+# Node Exporter - monitors node metrics
+nodeExporter:
+  enabled: true
+
+  resources:
+    requests:
+      memory: "32Mi"
+      cpu: "25m"
+    limits:
+      memory: "64Mi"
+      cpu: "50m"
+
+# Kube State Metrics - Kubernetes object metrics
+kubeStateMetrics:
+  enabled: true
+
+  resources:
+    requests:
+      memory: "64Mi"
+      cpu: "50m"
+    limits:
+      memory: "128Mi"
+      cpu: "100m"
+
+# Disable components not needed for local dev
+kubeControllerManager:
+  enabled: false
+
+kubeEtcd:
+  enabled: false
+
+kubeScheduler:
+  enabled: false
+
+kubeProxy:
+  enabled: false
+
+# Kubelet metrics
+kubelet:
+  enabled: true
+  namespace: kube-system
