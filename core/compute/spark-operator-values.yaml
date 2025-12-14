@@ -1,0 +1,96 @@
+# KLDP Spark Operator Configuration
+# Kubernetes operator for managing Apache Spark applications
+
+# Image configuration
+image:
+  registry: ghcr.io
+  repository: kubeflow/spark-operator
+  tag: "latest"
+  pullPolicy: IfNotPresent
+
+# Controller configuration
+controller:
+  # Resource limits for the operator controller
+  resources:
+    requests:
+      memory: "128Mi"
+      cpu: "100m"
+    limits:
+      memory: "256Mi"
+      cpu: "200m"
+
+  # Number of controller replicas
+  replicas: 1
+
+  # Worker threads for concurrent operations
+  workers: 10
+
+# Webhook configuration
+webhook:
+  enable: true
+  port: 8080
+
+  # Namespaces to watch for SparkApplication resources
+  # Empty list means watch all namespaces
+  namespaces: []
+
+# Spark job namespace
+# Where Spark applications will run
+sparkJobNamespace: "spark"
+
+# Service account for Spark applications
+serviceAccounts:
+  spark:
+    create: true
+    name: "spark"
+
+# RBAC configuration
+rbac:
+  create: true
+
+# Batch scheduler integration (optional)
+# Useful for multi-tenant environments
+batchScheduler:
+  enable: false
+
+# Metrics configuration
+metrics:
+  enable: true
+  port: 10254
+  endpoint: /metrics
+  prefix: ""
+
+# Prometheus integration
+prometheus:
+  enabled: true
+  port: 8081
+
+# Resource cleanup
+resourceQuotaEnforcement:
+  enable: false
+
+# Leader election for high availability
+leaderElection:
+  lockName: "spark-operator-lock"
+  lockNamespace: "spark"
+
+# Pod monitor for Prometheus Operator (if installed)
+podMonitor:
+  enable: false
+  labels: {}
+  jobLabel: spark-operator-podmonitor
+
+# Security context
+securityContext:
+  runAsUser: 1000
+  runAsGroup: 3000
+  fsGroup: 2000
+
+# Node selector for operator pod
+nodeSelector: {}
+
+# Tolerations for operator pod
+tolerations: []
+
+# Affinity rules for operator pod
+affinity: {}

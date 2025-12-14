@@ -1,7 +1,7 @@
 # KLDP Makefile
 # Convenience commands for managing the KLDP platform
 
-.PHONY: help check-prereq install-dev init-cluster install-airflow install-minio start stop clean validate
+.PHONY: help check-prereq install-dev init-cluster install-airflow install-minio install-spark start stop clean validate
 
 help: ## Show this help message
 	@echo "KLDP - Kubernetes Local Data Platform"
@@ -31,6 +31,9 @@ install-airflow: ## Install Airflow on the cluster
 
 install-minio: ## Install MinIO object storage on the cluster
 	@./scripts/install-minio.sh
+
+install-spark: ## Install Spark Operator on the cluster
+	@./scripts/install-spark.sh
 
 start: ## Start the KLDP cluster
 	@echo "Starting KLDP cluster..."
@@ -93,6 +96,12 @@ logs-webserver: ## Show Airflow webserver logs
 logs-minio: ## Show MinIO logs
 	kubectl logs -n storage -l app.kubernetes.io/name=minio -f
 
+logs-spark: ## Show Spark Operator logs
+	kubectl logs -n spark -l app.kubernetes.io/name=spark-operator -f
+
+spark-apps: ## List Spark applications
+	@kubectl get sparkapplications -n spark
+
 status: ## Show cluster and component status
 	@echo "=== Cluster Status ==="
 	@minikube status -p kldp || echo "Cluster not running"
@@ -108,3 +117,12 @@ status: ## Show cluster and component status
 	@echo ""
 	@echo "=== MinIO Release ==="
 	@helm status minio -n storage 2>/dev/null || echo "MinIO not installed"
+	@echo ""
+	@echo "=== Spark Operator Pods ==="
+	@kubectl get pods -n spark || echo "Spark Operator not installed"
+	@echo ""
+	@echo "=== Spark Operator Release ==="
+	@helm status spark-operator -n spark 2>/dev/null || echo "Spark Operator not installed"
+	@echo ""
+	@echo "=== Spark Applications ==="
+	@kubectl get sparkapplications -n spark 2>/dev/null || echo "No Spark applications running"
